@@ -4,17 +4,17 @@ BENCHFLAGS :=
 python-bench: numpy/*.py
 	pytest $(BENCHFLAGS) $(BENCHES)
 
-taco-bench: build-taco-bench
+taco-bench: taco/build/taco-bench
 ifeq ($(BENCHES),"")
 	taco/build/taco-bench $(BENCHFLAGS)
 else
 	taco/build/taco-bench $(BENCHFLAGS) --benchmark_filter="$(BENCHES)"
 endif
 
-build-taco-bench: check-and-reinit-submodules taco-bench-build  taco/build/Makefile
+taco/build/taco-bench: check-and-reinit-submodules taco/build/Makefile
 	$(MAKE) -C taco/build taco-bench
 
-taco/build/taco-bench: taco/benchmark/googletest/README.md
+taco/build/Makefile: taco/benchmark/googletest/README.md
 	mkdir taco/build
 	cd taco/build
 	cmake ../
