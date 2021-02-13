@@ -11,16 +11,16 @@ else
 	taco/build/taco-bench $(BENCHFLAGS) --benchmark_filter="$(BENCHES)"
 endif
 
-build-taco-bench: check-and-reinit-submodules taco/build taco/build/taco-bench
+build-taco-bench: check-and-reinit-submodules taco-bench-build  taco/build/Makefile
 	$(MAKE) -C taco/build taco-bench
 
-taco-bench-build: taco/build
+taco/build/taco-bench: taco/benchmark/googletest/README.md
 	mkdir taco/build
 	cd taco/build
 	cmake ../
 	cd ../../
 
-bench-gtest: taco/benchmark/googletest/README.md
+taco/benchmark/googletest/README.md:
 	git clone https://github.com/google/googletest taco/benchmark/googletest
 
 .PHONY: check-and-reinit-submodules
