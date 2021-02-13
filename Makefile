@@ -14,14 +14,14 @@ endif
 taco/build/taco-bench: check-and-reinit-submodules taco/build/Makefile
 	$(MAKE) -C taco/build taco-bench
 
-taco/build/Makefile: taco/benchmark/googletest/README.md
-	mkdir taco/build
+taco/build/Makefile: taco/benchmark/googletest
+	mkdir -p taco/build
 	cd taco/build
 	cmake ../
 	cd ../../
 
-taco/benchmark/googletest/README.md:
-	git clone https://github.com/google/googletest taco/benchmark/googletest
+taco/benchmark/googletest: check-and-reinit-submodules
+	if [ ! -d "taco/benchmark/googletest" ] ; then git clone https://github.com/google/googletest taco/benchmark/googletest; fi
 
 .PHONY: check-and-reinit-submodules
 check-and-reinit-submodules:
