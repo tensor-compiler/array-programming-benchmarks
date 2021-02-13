@@ -7,7 +7,8 @@ def test_add_sparse_window(benchmark):
     matrix = random(dim, dim, format="csr")
 
     def bench():
-        res = matrix[1:(dim-1), 1:(dim-1)] + matrix[1:(dim-1), 1:(dim-1)]
+        x = matrix[1:(dim-1), 1:(dim-1)] 
+        res = x + x
     benchmark.pedantic(bench, iterations=10)
 
 def test_add_multiple_sparse_windows(benchmark):
