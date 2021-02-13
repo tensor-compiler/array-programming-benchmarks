@@ -16,9 +16,7 @@ taco/build/taco-bench: check-and-reinit-submodules taco/build/Makefile
 
 taco/build/Makefile: taco/benchmark/googletest
 	mkdir -p taco/build
-	cd taco/build
-	cmake ../
-	cd ../../
+	cd taco/build/ && cmake ../
 
 taco/benchmark/googletest: check-and-reinit-submodules
 	if [ ! -d "taco/benchmark/googletest" ] ; then git clone https://github.com/google/googletest taco/benchmark/googletest; fi
