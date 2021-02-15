@@ -2,7 +2,7 @@ import numpy
 from scipy.sparse import random
 import pytest
 
-def test_add_window(tacoBench):
+def bench_add_window(tacoBench):
     dim = 10000
     matrix = random(dim, dim, format="csr").todense()
     def bench():
@@ -11,7 +11,7 @@ def test_add_window(tacoBench):
     tacoBench(bench)
 
 @pytest.mark.parametrize("dim", [5000, 10000, 20000])
-def test_add_sparse_window(tacoBench, dim):
+def bench_add_sparse_window(tacoBench, dim):
     matrix = random(dim, dim, format="csr")
     def bench():
         x = matrix[1:(dim-1), 1:(dim-1)] 
@@ -21,7 +21,7 @@ def test_add_sparse_window(tacoBench, dim):
     tacoBench(bench)
 
 @pytest.mark.parametrize("dim", [5000, 10000, 20000])
-def test_add_multiple_sparse_windows(tacoBench, dim):
+def bench_add_multiple_sparse_windows(tacoBench, dim):
     matrix1 = random(dim, dim, format="csr")
     matrix2 = random(dim, dim, format="csr")
     def bench():
@@ -29,7 +29,7 @@ def test_add_multiple_sparse_windows(tacoBench, dim):
     tacoBench(bench)
 
 @pytest.mark.parametrize("dim", [5000, 10000, 20000])
-def test_add_sparse_strided_window(tacoBench, dim):
+def bench_add_sparse_strided_window(tacoBench, dim):
     matrix = random(dim, dim, format="csr")
     def bench():
         x = matrix[1:(dim-1):2, 1:(dim-1):2] 
@@ -37,7 +37,7 @@ def test_add_sparse_strided_window(tacoBench, dim):
     tacoBench(bench)
 
 @pytest.mark.parametrize("dim", [5000, 10000, 20000])
-def test_add_sparse_index_set(tacoBench, dim):
+def bench_add_sparse_index_set(tacoBench, dim):
     indexes = [i * 2 for i in range(0, dim//2)]
     matrix = random(dim, dim, format="csr")
     def bench():
