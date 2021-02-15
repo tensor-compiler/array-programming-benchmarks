@@ -2,6 +2,8 @@ BENCHES := ""
 BENCHFLAGS :=
 
 # To group benchmark output by benchmark, use BENCHFLAGS=--benchmark-group-by=func.
+# To additionally group by a parameterized value, add on ",param:<paramname>" to the
+# command above.
 python-bench: numpy/*.py
 	pytest --ignore=taco $(BENCHFLAGS) $(BENCHES)
 

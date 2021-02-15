@@ -2,17 +2,19 @@ import numpy
 from scipy.sparse import random
 import pytest
 
+@pytest.mark.skip(reason="too slow right now")
 def bench_add_window(tacoBench):
     dim = 10000
     matrix = random(dim, dim, format="csr").todense()
     def bench():
-        x = matrix[1:(dim-1), 1:(dim-1)] 
+        x = matrix[1:(dim-1), 1:(dim-1)]
         res = x + x
     tacoBench(bench)
 
 @pytest.mark.parametrize("dim", [5000, 10000, 20000])
-def bench_add_sparse_window(tacoBench, dim):
-    matrix = random(dim, dim, format="csr")
+@pytest.mark.parametrize("format", ['csr', 'csc'])
+def bench_add_sparse_window(tacoBench, dim, format):
+    matrix = random(dim, dim, format=format)
     def bench():
         x = matrix[1:(dim-1), 1:(dim-1)] 
         res = x + x
@@ -21,25 +23,28 @@ def bench_add_sparse_window(tacoBench, dim):
     tacoBench(bench)
 
 @pytest.mark.parametrize("dim", [5000, 10000, 20000])
-def bench_add_multiple_sparse_windows(tacoBench, dim):
-    matrix1 = random(dim, dim, format="csr")
-    matrix2 = random(dim, dim, format="csr")
+@pytest.mark.parametrize("format", ['csr', 'csc'])
+def bench_add_multiple_sparse_windows(tacoBench, dim, format):
+    matrix1 = random(dim, dim, format=format)
+    matrix2 = random(dim, dim, format=format)
     def bench():
         res = matrix1[1:(dim-1), 1:(dim-1)] + matrix2[1:(dim-1), 1:(dim-1)] + matrix1[0:(dim-2), 0:(dim-2)]
     tacoBench(bench)
 
 @pytest.mark.parametrize("dim", [5000, 10000, 20000])
-def bench_add_sparse_strided_window(tacoBench, dim):
-    matrix = random(dim, dim, format="csr")
+@pytest.mark.parametrize("format", ['csr', 'csc'])
+def bench_add_sparse_strided_window(tacoBench, dim, format):
+    matrix = random(dim, dim, format=format)
     def bench():
         x = matrix[1:(dim-1):2, 1:(dim-1):2] 
         res = x + x
     tacoBench(bench)
 
 @pytest.mark.parametrize("dim", [5000, 10000, 20000])
-def bench_add_sparse_index_set(tacoBench, dim):
+@pytest.mark.parametrize("format", ['csr', 'csc'])
+def bench_add_sparse_index_set(tacoBench, dim, format):
     indexes = [i * 2 for i in range(0, dim//2)]
-    matrix = random(dim, dim, format="csr")
+    matrix = random(dim, dim, format=format)
     def bench():
         x = matrix[:, indexes] 
         res = x + x
