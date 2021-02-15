@@ -2,7 +2,7 @@ BENCHES := ""
 BENCHFLAGS :=
 
 python-bench: numpy/*.py
-	pytest $(BENCHFLAGS) $(BENCHES)
+	pytest --ignore=taco $(BENCHFLAGS) $(BENCHES)
 
 taco-bench: taco/build/taco-bench
 ifeq ($(BENCHES),"")
