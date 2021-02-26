@@ -14,12 +14,8 @@ else
 	taco/build/taco-bench $(BENCHFLAGS) --benchmark_filter="$(BENCHES)"
 endif
 
-taco/build/taco-bench: check-and-reinit-submodules taco/build/Makefile
-	$(MAKE) -C taco/build taco-bench
-
-taco/build/Makefile: taco/benchmark/googletest
-	mkdir -p taco/build
-	cd taco/build/ && cmake ../
+taco/build/taco-bench: check-and-reinit-submodules taco/benchmark/googletest
+	cd taco/build/ && cmake ../ && make taco-bench 
 
 taco/benchmark/googletest: check-and-reinit-submodules
 	if [ ! -d "taco/benchmark/googletest" ] ; then git clone https://github.com/google/googletest taco/benchmark/googletest; fi

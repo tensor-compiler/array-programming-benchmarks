@@ -1,3 +1,4 @@
+#include "bench.h"
 #include "benchmark/benchmark.h"
 
 #include "taco/tensor.h"
@@ -6,12 +7,18 @@
 
 using namespace taco;
 
-static void BM_basic_windowing(benchmark::State& state) {
-  auto dim = 10000;
+// applyBenchSizes is used to configure the benchmarks to run with the
+// input arguments.
+static void applyBenchSizes(benchmark::internal::Benchmark* b) {
+  // Currently considering these size square tensors.
+  b->ArgsProduct({{5000, 10000, 20000}});
+}
+
+static void bench_add_sparse_window(benchmark::State& state, const Format& f) {
+  int dim = state.range(0);
   auto sparsity = 0.01;
-  // CSR format.
-  Tensor<float> matrix("A", {dim, dim}, {Dense, Sparse});
-  Tensor<float> result("B", {dim-2, dim-2}, {Dense, Sparse});
+  Tensor<float> matrix("A", {dim, dim}, f);
+  Tensor<float> result("B", {dim-2, dim-2}, f);
 
   srand(4357);
   for (int i = 0; i < dim; i++) {
@@ -24,16 +31,19 @@ static void BM_basic_windowing(benchmark::State& state) {
   }
   matrix.pack();
 
-  IndexVar i, j;
-  result(i, j) = matrix(i(1, dim-1), j(1, dim-1)) + matrix(i(1, dim-1), j(1, dim-1));
-  result.compile();
-  result.assemble();
 
   for (auto _ : state) {
-    // This code gets timed. Setup goes outside the loop.
+    state.PauseTiming();
+    IndexVar i, j;
+    result(i, j) = matrix(i(1, dim-1), j(1, dim-1)) + matrix(i(1, dim-1), j(1, dim-1));
+    result.compile();
+    result.assemble();
+    state.ResumeTiming();
     result.compute();
   }
 }
-// Have benchmarking report milliseconds and run for 10 iterations.
-BENCHMARK(BM_basic_windowing)->Unit(benchmark::kMillisecond)->Iterations(10);
 
+// Have benchmarking report milliseconds and run for 10 iterations.
+// Run an instance with both CSR and CSC formats.
+TACO_BENCH_ARG(bench_add_sparse_window, csr, CSR)->Apply(applyBenchSizes);
+TACO_BENCH_ARG(bench_add_sparse_window, csc, CSC)->Apply(applyBenchSizes);
