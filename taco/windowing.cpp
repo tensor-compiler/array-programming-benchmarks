@@ -49,3 +49,39 @@ static void bench_add_sparse_window(benchmark::State& state, const Format& f) {
 // Run an instance with both CSR and CSC formats.
 TACO_BENCH_ARG(bench_add_sparse_window, csr, CSR)->Apply(applyBenchSizes);
 TACO_BENCH_ARG(bench_add_sparse_window, csc, CSC)->Apply(applyBenchSizes);
+
+static void bench_add_sparse_strided_window(benchmark::State& state, const Format& f) {
+  int dim = state.range(0);
+  auto sparsity = 0.01;
+  Tensor<float> matrix("A", {dim, dim}, f);
+
+  srand(4357);
+  for (int i = 0; i < dim; i++) {
+    for (int j = 0; j < dim; j++) {
+      float rand_float = (float)rand()/(float)(RAND_MAX);
+      if (rand_float < sparsity) {
+        matrix.insert({i, j}, (float) ((int) (rand_float*3/sparsity)));
+      }
+    }
+  }
+  matrix.pack();
+
+
+  for (auto _ : state) {
+    // Setup.
+    state.PauseTiming();
+    Tensor<float> result("B", {(dim-2)/4, (dim-2)/4}, f);
+    IndexVar i, j;
+    result(i, j) = matrix(i(1, dim-1, 4), j(1, dim-1, 4)) + matrix(i(1, dim-1, 4), j(1, dim-1, 4));
+    result.compile();
+    result.assemble();
+    state.ResumeTiming();
+    // The actual computation.
+    result.compute();
+  }
+}
+
+// Have benchmarking report milliseconds and run for 10 iterations.
+// Run an instance with both CSR and CSC formats.
+TACO_BENCH_ARG(bench_add_sparse_strided_window, csr, CSR)->Apply(applyBenchSizes);
+TACO_BENCH_ARG(bench_add_sparse_strided_window, csc, CSC)->Apply(applyBenchSizes);

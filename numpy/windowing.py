@@ -24,6 +24,15 @@ def bench_add_sparse_window(tacoBench, dim, format):
 
 @pytest.mark.parametrize("dim", [5000, 10000, 20000])
 @pytest.mark.parametrize("format", ['csr', 'csc'])
+def bench_add_sparse_strided_window(tacoBench, dim, format):
+    matrix = random(dim, dim, format=format)
+    def bench():
+        x = matrix[1:(dim-1):4, 1:(dim-1):4] 
+        res = x + x
+    tacoBench(bench)
+
+@pytest.mark.parametrize("dim", [5000, 10000, 20000])
+@pytest.mark.parametrize("format", ['csr', 'csc'])
 def bench_add_multiple_sparse_windows(tacoBench, dim, format):
     matrix1 = random(dim, dim, format=format)
     matrix2 = random(dim, dim, format=format)
