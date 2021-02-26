@@ -18,7 +18,6 @@ static void bench_add_sparse_window(benchmark::State& state, const Format& f) {
   int dim = state.range(0);
   auto sparsity = 0.01;
   Tensor<float> matrix("A", {dim, dim}, f);
-  Tensor<float> result("B", {dim-2, dim-2}, f);
 
   srand(4357);
   for (int i = 0; i < dim; i++) {
@@ -33,12 +32,15 @@ static void bench_add_sparse_window(benchmark::State& state, const Format& f) {
 
 
   for (auto _ : state) {
+    // Setup.
     state.PauseTiming();
+    Tensor<float> result("B", {dim-2, dim-2}, f);
     IndexVar i, j;
     result(i, j) = matrix(i(1, dim-1), j(1, dim-1)) + matrix(i(1, dim-1), j(1, dim-1));
     result.compile();
     result.assemble();
     state.ResumeTiming();
+    // The actual computation.
     result.compute();
   }
 }
