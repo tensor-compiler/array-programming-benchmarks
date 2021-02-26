@@ -1,5 +1,6 @@
 import numpy
 from scipy.sparse import random
+import sparse
 import pytest
 
 @pytest.mark.skip(reason="too slow right now")
@@ -20,6 +21,16 @@ def bench_add_sparse_window(tacoBench, dim, format):
         res = x + x
         # Sanity check that this has a similar runtime as taco.
         # res = matrix + matrix
+    tacoBench(bench)
+
+# TODO (rohany): This is really slow (compared to scipy.sparse). Check with hameer
+#  that this result makes sense.
+@pytest.mark.parametrize("dim", [5000, 10000, 20000])
+def bench_add_pydata_sparse_window(tacoBench, dim):
+    matrix = sparse.random((dim, dim))
+    def bench():
+        x = matrix[1:(dim-1), 1:(dim-1)] 
+        res = x + x
     tacoBench(bench)
 
 @pytest.mark.parametrize("dim", [5000, 10000, 20000])
