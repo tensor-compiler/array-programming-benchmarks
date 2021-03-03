@@ -1,18 +1,31 @@
 import numpy
 from scipy.sparse import random
+import sparse
 import pytest
 
-# TODO (rohany): We can parametrize this over the sparsity as well.
-# @pytest.mark.parametrize("format", ['csr', 'csc'])
+# TODO (rohany): Ask hameer about this. pydata/sparse isn't happy when
+#  given this ufunc to evaluate.
+def myfunc(x, y):
+    return x + y
+myufunc = numpy.frompyfunc(myfunc, 2, 1, identity=0)
+
 # @pytest.mark.parametrize("dim", [5000, 10000, 20000])
 @pytest.mark.parametrize("dim", [250, 500, 750, 1000, 2500, 5000, 7500, 8000])
-def bench_xor_sparse(tacoBench, dim):
-    # TODO (rohany): It doesn't look like scipy.sparse works with
-    #  logical_xor. pydata.sparse might however.
-    # A = random(dim, dim, format="csr", data_rvs=numpy.ones)
-    # B = random(dim, dim, format="csr", data_rvs=numpy.ones)
-    A = numpy.random.randint(2, size=(dim, dim))
-    B = numpy.random.randint(2, size=(dim, dim))
+@pytest.mark.parametrize("ufunc", [numpy.logical_xor, numpy.logical_or, numpy.right_shift])
+def bench_ufunc_dense(tacoBench, dim, ufunc):
+    A = numpy.random.randint(2, size=(dim, dim)).astype(numpy.uint32)
+    B = numpy.random.randint(2, size=(dim, dim)).astype(numpy.uint32)
     def bench():
-        C = numpy.logical_xor(A, B)
+        C = ufunc(A, B)
+    tacoBench(bench)
+
+# TODO (rohany): We can parametrize this over the sparsity as well.
+# @pytest.mark.parametrize("dim", [5000, 10000, 20000])
+@pytest.mark.parametrize("dim", [250, 500, 750, 1000, 2500, 5000, 7500, 8000])
+@pytest.mark.parametrize("ufunc", [numpy.logical_xor, numpy.logical_or, numpy.right_shift])
+def bench_pydata_ufunc_sparse(tacoBench, dim, ufunc):
+    A = sparse.random((dim, dim), data_rvs=numpy.ones).astype(numpy.uint32)
+    B = sparse.random((dim, dim), data_rvs=numpy.ones).astype(numpy.uint32)
+    def bench():
+        C = ufunc(A, B)
     tacoBench(bench)
