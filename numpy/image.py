@@ -1,9 +1,10 @@
 import numpy as np
 import cv2
 import os
-import pytest 
+import pytest
+import matplotlib.pyplot as plt 
 
-images_path = "./images"
+images_path = "./numpy/images"
 
 def load_dataset(image_folder):
     files = sorted(os.listdir(image_folder))
@@ -29,36 +30,50 @@ def thresh(images, t=85):
     thresh_imgs =  np.stack(thresh_imgs, axis=0)        
     return thresh_imgs 
 
-def plot_image(image, title=""):
-    plt.imshow(image, 'gray')
-    plt.title(title)
+def plot_image(img, img1, img2, xor_img, t1, t2):
+    f, ax = plt.subplots(2, 2)
+    ax[0, 0].imshow(img1, 'gray')
+    ax[0, 0].title.set_text("Binned Image 1. t1 = " + str(t1))
+
+    ax[0, 1].imshow(img2, 'gray')
+    ax[0, 1].title.set_text("Binned Image 2. t2 = " + str(t2))
+
+    ax[1, 0].imshow(img, 'gray')
+    ax[1, 0].title.set_text("Saturdated Image")
+
+    ax[1, 1].imshow(xor_img, 'gray')
+    ax[1, 1].title.set_text("XOR Image")
+    
+    f.tight_layout()
     plt.show()
 
-def main():
+@pytest.mark.parametrize("t1", [100, 150, 200, 250])
+def bench_edge_detection(tacoBench, t1, plot):
     images = load_dataset(images_path)
-    print(images.shape)
+    if plot:
+        print(images.shape)
+    
     sat_images = images[:,:,:,1]
-    print(sat_images.shape)     
+    
     img = sat_images[0]
-    print(img.shape)
-    plot_image(img)
-    t1 = 150
-    t2 = 100
+    
+    t2 = t1 - 50
+ 
     bin_img1 = thresh(img, t1)
     bin_img2 = thresh(img, t2)
-    print(bin_img1.shape)
+    num_elements = float(np.prod(bin_img1.shape))
 
-    print("nnz img 1 ", np.sum(bin_img1 != 0))
-    print("nnz img 1 ", np.sum(bin_img2 != 0))
-    print("total arr size ", np.prod(bin_img1.shape))
+    def bench():
+        xor_img = np.logical_xor(bin_img1[0], bin_img2[0]).astype('int')
+        return xor_img
+    ret = tacoBench(bench)
+    xor_img = bench()
+    if plot:
+        plot_image(img, bin_img1[0], bin_img2[0], xor_img, t1, t2)
 
-    plot_image(bin_img1[0], "thresh = " + str(t1))
-    plot_image(bin_img2[0], "thresh = " + str(t2))
-
-    xor_img = np.logical_xor(bin_img1[0], bin_img2[0]).astype('int')
-    plot_image(xor_img)
-
-    print("nnz xor ", np.sum(xor_img != 0))
+    print("Sparsity img 1 ", np.sum(bin_img1 != 0) / num_elements)
+    print("Sparsity img 2 ", np.sum(bin_img2 != 0) / num_elements)
+    print("Sparsity xor ", np.sum(xor_img != 0) / num_elements)
     
 if __name__=="__main__":
     main()

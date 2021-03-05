@@ -2,3 +2,5 @@
 *CMakeFiles/
 *.idea/*
 .DS_Store
+*.swo
+*.swp

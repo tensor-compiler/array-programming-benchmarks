@@ -1,7 +1,7 @@
 BENCHES := ""
 BENCHFLAGS := #"--benchmark-group-by=func"
 
-IGNORE := numpy/image.py
+#IGNORE := numpy/image.py
 IGNORE += taco
 IGNORE_FLAGS := $(addprefix --ignore=, $(IGNORE)) 
 
