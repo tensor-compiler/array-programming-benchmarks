@@ -39,9 +39,6 @@ def import_tensor(filename, dim):
         lines = f.readlines()
         
         count = 0
-        indptr = 0
-        indices = 0
-        data = 0
         for line in lines:
             count += 1
             if count == 5:
@@ -62,7 +59,13 @@ def import_tensor(filename, dim):
 def get_ufunc_str(ufunc):
     if ufunc == numpy.logical_xor:
         return "xor"
-@pytest.mark.parametrize("dim", [250, 500, 750, 1000, 2500, 5000, 7500, 8000])
+    if ufunc == numpy.right_shift:
+        return ">>"
+    if ufunc == numpy.ldexp:
+        return "2^"
+
+#@pytest.mark.parametrize("dim", [250, 500, 750, 1000, 2500, 5000, 7500, 8000])
+@pytest.mark.parametrize("dim", [10])
 @pytest.mark.parametrize("ufunc", [numpy.logical_xor])
 def bench_pydata_import_ufunc_sparse(tacoBench, dim, ufunc):
     filenameA = "./data/bench_ufunc_sparse_"

@@ -120,6 +120,9 @@ static void bench_ufunc_sparse(benchmark::State& state, ExtraArgs&&... extra_arg
   A.pack(); B.pack();
   
   // Output tensors to file
+  // FIXME (owhsu): Why for dim == 10, does the CSR dense mode repeat indices?
+  //                This is causing a problem for the format of csr_matrix(...) in pytest
+  //                See <repo>/data/* for examples
   printTensor(A, "./data", __FUNCTION__ , dim, extra_args...);
   printTensor(B, "./data", __FUNCTION__ , dim, extra_args...);
 
@@ -135,11 +138,14 @@ static void bench_ufunc_sparse(benchmark::State& state, ExtraArgs&&... extra_arg
 
     // The actual computation.
     result.compute();
+    state.PauseTiming();
+    printTensor(result, "./data", __FUNCTION__, dim, extra_args...);
+    state.ResumeTiming();
   }
 }
 static void applyBenchSizes(benchmark::internal::Benchmark* b) {
-   b->ArgsProduct({{250, 500, 750, 1000, 2500, 5000, 7500, 8000}});
-  //b->ArgsProduct({{2, 4, 10}});
+  // b->ArgsProduct({{250, 500, 750, 1000, 2500, 5000, 7500, 8000}});
+  b->ArgsProduct({{10}});
 }
 
 TACO_BENCH_ARGS(bench_ufunc_sparse, xor_0.01, 0.01, "xor")->Apply(applyBenchSizes);
