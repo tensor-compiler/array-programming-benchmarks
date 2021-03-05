@@ -50,8 +50,6 @@ def plot_image(img, img1, img2, xor_img, t1, t2):
 @pytest.mark.parametrize("t1", [100, 150, 200, 250])
 def bench_edge_detection(tacoBench, t1, plot):
     images = load_dataset(images_path)
-    if plot:
-        print(images.shape)
     
     sat_images = images[:,:,:,1]
     

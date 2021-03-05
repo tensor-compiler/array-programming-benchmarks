@@ -1,3 +1,4 @@
+#include <fstream>
 #include "bench.h"
 #include "benchmark/benchmark.h"
 
@@ -41,19 +42,47 @@ struct RightShift{
   }
 };
 
-struct rightShiftAlgebra {
+struct leftIncAlgebra {
   IterationAlgebra operator()(const std::vector<IndexExpr>& regions) {
     return Union(regions[0], Intersect(regions[0], regions[1]));
   }
 };
 
-// TODO (rohany): We can extract most of the logic out of here and parametrize the test by
-//  a particular Func.
+struct Ldexp {
+  ir::Expr operator()(const std::vector<ir::Expr> &v) {
+    if (v.size() == 1)
+      return v[0];
+
+    ir::Expr shift = ir::BinOp::make(v[0], v[1], "", "* pow(2.0, ", ")");
+    for (size_t idx = 2; idx < v.size(); ++idx) {
+      shift = ir::BinOp::make(shift, v[idx], "", "* pow(2.0, ", ")");
+    }
+    return shift;
+  }
+};
+
 template <int I, class...Ts>
 decltype(auto) get(Ts&&... ts) {
   return std::get<I>(std::forward_as_tuple(ts...));
 }
 
+template <class ...ExtraArgs>
+void printTensor(TensorBase tensor,  std::string location, std::string benchName, int dim, ExtraArgs&&... extra_args) {
+  auto& sparsity = get<0>(extra_args...);
+  auto opType = get<1>(extra_args...);
+
+  std::string sparseStr = std::to_string(sparsity);
+  sparseStr = sparseStr.substr(2, sparseStr.size());
+  std::string filename = location + "/" + benchName + "_" + tensor.getName() + "_" + opType + "_" + \
+                          std::to_string(dim) + "_" + sparseStr  + ".txt";
+  std::ofstream outfile(filename, std::ofstream::out);
+  std::cout << filename << std::endl;
+  outfile << util::toString(tensor);
+  outfile.close();
+}
+
+// TODO (rohany): We can extract most of the logic out of here and parametrize the test by
+//  a particular Func.
 template <class ...ExtraArgs>
 static void bench_ufunc_sparse(benchmark::State& state, ExtraArgs&&... extra_args) {
   int dim = state.range(0);
@@ -62,14 +91,14 @@ static void bench_ufunc_sparse(benchmark::State& state, ExtraArgs&&... extra_arg
   auto opType = get<1>(extra_args...);
 
   Func xorOp("xor", GeneralAdd(), xorAlgebra());
-  Func rightShiftOp(">>", RightShift(), rightShiftAlgebra());
-
   Func op = xorOp;
-  if (opType == "xor")
-    op = xorOp;
-  else if (opType == ">>")
+  if (opType == ">>") {
+    Func rightShiftOp(">>", RightShift(), leftIncAlgebra());
     op = rightShiftOp;
-
+  } else if (opType == "2^") {
+    Func ldexpOp("2^", Ldexp(), leftIncAlgebra());
+    op = ldexpOp;
+  }
 
   // TODO (rohany): We can parametrize over the sparsities here.
   Tensor<int> A("A", {dim, dim}, CSR);
@@ -90,6 +119,10 @@ static void bench_ufunc_sparse(benchmark::State& state, ExtraArgs&&... extra_arg
     }
   }
   A.pack(); B.pack();
+
+  // Output tensors to file
+  printTensor(A, "./data", __FUNCTION__ , dim, extra_args...);
+  printTensor(B, "./data", __FUNCTION__ , dim, extra_args...);
 
   for (auto _ : state) {
     // Setup.
