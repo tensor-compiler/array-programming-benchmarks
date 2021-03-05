@@ -1,6 +1,6 @@
 [submodule "taco/taco"]
 	path = taco/taco
-	url = git@github.com:tensor-compiler/taco.git
+	url = ../taco.git
 [submodule "taco/benchmark"]
 	path = taco/benchmark
-	url = git@github.com:google/benchmark.git
+	url = ../../google/benchmark.git
