@@ -73,10 +73,9 @@ void printTensor(TensorBase tensor,  std::string location, std::string benchName
 
   std::string sparseStr = std::to_string(sparsity);
   sparseStr = sparseStr.substr(2, sparseStr.size());
-  std::string filename = location + "/" + benchName + "_" + tensor.getName() + "_" + opType + "_" + \
-                          std::to_string(dim) + "_" + sparseStr  + ".txt";
+  std::string filename = location + "/" + benchName + "_" + opType + "_" + \
+                          std::to_string(dim) + "_" + sparseStr + "_" + tensor.getName()  + ".txt";
   std::ofstream outfile(filename, std::ofstream::out);
-  std::cout << filename << std::endl;
   outfile << util::toString(tensor);
   outfile.close();
 }
@@ -119,7 +118,7 @@ static void bench_ufunc_sparse(benchmark::State& state, ExtraArgs&&... extra_arg
     }
   }
   A.pack(); B.pack();
-
+  
   // Output tensors to file
   printTensor(A, "./data", __FUNCTION__ , dim, extra_args...);
   printTensor(B, "./data", __FUNCTION__ , dim, extra_args...);
@@ -139,7 +138,8 @@ static void bench_ufunc_sparse(benchmark::State& state, ExtraArgs&&... extra_arg
   }
 }
 static void applyBenchSizes(benchmark::internal::Benchmark* b) {
-  b->ArgsProduct({{250, 500, 750, 1000, 2500, 5000, 7500, 8000}});
+   b->ArgsProduct({{250, 500, 750, 1000, 2500, 5000, 7500, 8000}});
+  //b->ArgsProduct({{2, 4, 10}});
 }
 
 TACO_BENCH_ARGS(bench_ufunc_sparse, xor_0.01, 0.01, "xor")->Apply(applyBenchSizes);
