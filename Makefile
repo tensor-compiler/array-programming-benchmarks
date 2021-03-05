@@ -1,11 +1,15 @@
 BENCHES := ""
-BENCHFLAGS :=
+BENCHFLAGS := #"--benchmark-group-by=func"
+
+#IGNORE := numpy/image.py
+IGNORE += taco
+IGNORE_FLAGS := $(addprefix --ignore=, $(IGNORE)) 
 
 # To group benchmark output by benchmark, use BENCHFLAGS=--benchmark-group-by=func.
 # To additionally group by a parameterized value, add on ",param:<paramname>" to the
 # command above.
 python-bench: numpy/*.py
-	pytest --ignore=taco $(BENCHFLAGS) $(BENCHES)
+	pytest $(IGNORE_FLAGS) $(BENCHFLAGS) $(BENCHES)
 
 taco-bench: taco/build/taco-bench
 ifeq ($(BENCHES),"")

@@ -20,12 +20,21 @@
 // of an arbitrarily typed argument to the benchmark function.
 // TODO (rohany): Make this take in only 1 argument.
 // TODO (rohany): Don't specify the time here, but do it at the command line.
-#define TACO_BENCH_ARG(bench, name, arg) \
-  BENCHMARK_CAPTURE(bench, name, arg)    \
-  ->Unit(benchmark::kMicrosecond)        \
-  ->Repetitions(10)                      \
-  ->Iterations(5)                        \
-  ->ReportAggregatesOnly(true)           \
+
+#define TACO_BENCH_ARG(bench, name, arg)  \
+  BENCHMARK_CAPTURE(bench, name, arg)     \
+  ->Unit(benchmark::kMicrosecond)         \
+  ->Repetitions(10)                       \
+  ->Iterations(5)                         \
+  ->ReportAggregatesOnly(true)            \
+  ->UseRealTime()
+
+#define TACO_BENCH_ARGS(bench, name, ...)       \
+  BENCHMARK_CAPTURE(bench, name, __VA_ARGS__)   \
+  ->Unit(benchmark::kMicrosecond)               \
+  ->Repetitions(10)                             \
+  ->Iterations(5)                               \
+  ->ReportAggregatesOnly(true)                  \
   ->UseRealTime()
 
 #endif //TACO_BENCH_BENCH_H

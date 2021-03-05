@@ -10,7 +10,9 @@ using namespace taco;
 
 struct GeneralAdd {
   ir::Expr operator()(const std::vector<ir::Expr> &v) {
-    taco_iassert(v.size() >= 2) << "Add operator needs at least two operands";
+    taco_iassert(v.size() >= 1) << "Add operator needs at least one operand";
+    if (v.size() == 1)
+        return ir::Add::make(v[0], ir::Literal::zero(v[0].type()));
     ir::Expr add = ir::Add::make(v[0], v[1]);
     for (size_t idx = 2; idx < v.size(); ++idx) {
       add = ir::Add::make(add, v[idx]);
@@ -26,12 +28,48 @@ struct xorAlgebra {
   }
 };
 
+struct RightShift{
+  ir::Expr operator()(const std::vector<ir::Expr> &v) {
+    if (v.size() == 1)
+      return v[0];
+
+    ir::Expr shift = ir::BinOp::make(v[0], v[1], " >> ");
+    for (size_t idx = 2; idx < v.size(); ++idx) {
+      shift = ir::BinOp::make(shift, v[idx], " >> ");
+    }
+    return shift;
+  }
+};
+
+struct rightShiftAlgebra {
+  IterationAlgebra operator()(const std::vector<IndexExpr>& regions) {
+    return Union(regions[0], Intersect(regions[0], regions[1]));
+  }
+};
+
 // TODO (rohany): We can extract most of the logic out of here and parametrize the test by
 //  a particular Func.
-static void bench_xor_sparse(benchmark::State& state, float sparsity) {
+template <int I, class...Ts>
+decltype(auto) get(Ts&&... ts) {
+  return std::get<I>(std::forward_as_tuple(ts...));
+}
+
+template <class ...ExtraArgs>
+static void bench_ufunc_sparse(benchmark::State& state, ExtraArgs&&... extra_args) {
   int dim = state.range(0);
 
+  auto& sparsity = get<0>(extra_args...);
+  auto opType = get<1>(extra_args...);
+
   Func xorOp("xor", GeneralAdd(), xorAlgebra());
+  Func rightShiftOp(">>", RightShift(), rightShiftAlgebra());
+
+  Func op = xorOp;
+  if (opType == "xor")
+    op = xorOp;
+  else if (opType == ">>")
+    op = rightShiftOp;
+
 
   // TODO (rohany): We can parametrize over the sparsities here.
   Tensor<int> A("A", {dim, dim}, CSR);
@@ -58,7 +96,7 @@ static void bench_xor_sparse(benchmark::State& state, float sparsity) {
     state.PauseTiming();
     Tensor<float> result("C", {dim, dim}, CSR);
     IndexVar i, j;
-    result(i, j) = xorOp(A(i, j), B(i, j));
+    result(i, j) = op(A(i, j), B(i, j));
     result.compile();
     result.assemble();
     state.ResumeTiming();
@@ -70,4 +108,6 @@ static void bench_xor_sparse(benchmark::State& state, float sparsity) {
 static void applyBenchSizes(benchmark::internal::Benchmark* b) {
   b->ArgsProduct({{250, 500, 750, 1000, 2500, 5000, 7500, 8000}});
 }
-TACO_BENCH_ARG(bench_xor_sparse, 0.01, 0.01)->Apply(applyBenchSizes);
+
+TACO_BENCH_ARGS(bench_ufunc_sparse, xor_0.01, 0.01, "xor")->Apply(applyBenchSizes);
+TACO_BENCH_ARGS(bench_ufunc_sparse, rightShift_0.01, 0.01, ">>")->Apply(applyBenchSizes);
