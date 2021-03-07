@@ -3,6 +3,8 @@ from scipy.sparse import random
 import sparse
 import pytest
 
+from util import RandomScipySparseTensorLoader, RandomPydataSparseTensorLoader
+
 @pytest.mark.skip(reason="too slow right now")
 def bench_add_window(tacoBench):
     dim = 10000
@@ -15,7 +17,8 @@ def bench_add_window(tacoBench):
 @pytest.mark.parametrize("dim", [5000, 10000, 20000])
 @pytest.mark.parametrize("format", ['csr', 'csc'])
 def bench_add_sparse_window(tacoBench, dim, format):
-    matrix = random(dim, dim, format=format)
+    loader = RandomScipySparseTensorLoader(format)
+    matrix = loader.random((dim, dim), 0.01)
     def bench():
         x = matrix[1:(dim-1), 1:(dim-1)] 
         res = x + x
@@ -27,7 +30,8 @@ def bench_add_sparse_window(tacoBench, dim, format):
 #  that this result makes sense.
 @pytest.mark.parametrize("dim", [5000, 10000, 20000])
 def bench_add_pydata_sparse_window(tacoBench, dim):
-    matrix = sparse.random((dim, dim))
+    loader = RandomPydataSparseTensorLoader()
+    matrix = loader.random((dim, dim), 0.01)
     def bench():
         x = matrix[1:(dim-1), 1:(dim-1)] 
         res = x + x
