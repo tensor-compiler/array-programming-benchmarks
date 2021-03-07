@@ -13,7 +13,7 @@
   BENCHMARK(bench)                \
   ->Unit(benchmark::kMillisecond) \
   ->Repetitions(10)               \
-  ->Iterations(5)                 \
+  ->Iterations(1)                 \
   ->ReportAggregatesOnly(true)    \
   ->UseRealTime()
 

@@ -5,7 +5,7 @@ BENCHFLAGS := #"--benchmark-group-by=func"
 IGNORE += taco
 IGNORE_FLAGS := $(addprefix --ignore=, $(IGNORE)) 
 
-export TACO_RANDOM_TENSOR_PATH = data/random/
+export TACO_TENSOR_PATH = data/
 
 # To group benchmark output by benchmark, use BENCHFLAGS=--benchmark-group-by=func.
 # To additionally group by a parameterized value, add on ",param:<paramname>" to the

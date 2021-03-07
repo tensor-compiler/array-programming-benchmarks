@@ -1,6 +1,11 @@
 import scipy.sparse
 import sparse
 import os
+import glob
+
+# Get the path to the directory holding random tensors. Error out
+# if this isn't set.
+TENSOR_PATH = os.environ['TACO_TENSOR_PATH']
 
 # TnsFileLoader loads a tensor stored in .tns format.
 class TnsFileLoader:
@@ -87,12 +92,10 @@ class PydataSparseTensorLoader:
 # sparsity. For example, a 250 by 250 tensor with sparsity 0.01
 # would have a key of 250x250-0.01.tns.
 def construct_random_tensor_key(shape, sparsity):
-    # Get the path to the directory holding random tensors. Error out
-    # if this isn't set.
-    path = os.environ['TACO_RANDOM_TENSOR_PATH']
+    path = TENSOR_PATH
     dims = "x".join([str(dim) for dim in shape])
     key = "{}-{}.tns".format(dims, sparsity)
-    return os.path.join(path, key)
+    return os.path.join(path, "random", key)
 
 # RandomPydataSparseTensorLoader should be used to generate
 # random pydata.sparse tensors. It caches the loaded tensors
@@ -134,3 +137,27 @@ class RandomScipySparseTensorLoader:
             dok = scipy.sparse.dok_matrix(result)
             TnsFileDumper().dump_dict_to_file(shape, dict(dok.items()), key)
             return result
+
+# FROSTTTensor represents a tensor in the FROSTT dataset.
+class FROSTTTensor:
+    def __init__(self, path):
+        self.path = path
+
+    def __str__(self):
+        f = os.path.split(self.path)[1]
+        return f.replace(".tns", "")
+
+    def load(self):
+        return PydataSparseTensorLoader().load(self.path)
+
+# TensorCollectionFROSTT represents the set of all FROSTT tensors.
+class TensorCollectionFROSTT:
+    def __init__(self):
+        data = os.path.join(TENSOR_PATH, "FROSTT")
+        frostttensors = glob.glob(os.path.join(data, "*.tns"))
+        self.tensors = [FROSTTTensor(t) for t in frostttensors]
+
+    def getTensors(self):
+        return self.tensors
+    def getTensorNames(self):
+        return [str(tensor) for tensor in self.getTensors()]

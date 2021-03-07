@@ -7,9 +7,9 @@
 #include "taco/util/strings.h"
 
 std::string constructRandomTensorKey(std::vector<int> dims, float sparsity) {
-  auto path = std::getenv("TACO_RANDOM_TENSOR_PATH");
+  auto path = std::getenv("TACO_TENSOR_PATH");
   if (path == nullptr) {
-    std::cout << "TACO_RANDOM_TENSOR_PATH is unset" << std::endl;
+    std::cout << "TACO_TENSOR_PATH is unset" << std::endl;
     assert(false);
   }
   std::string pathStr(path);
@@ -18,6 +18,7 @@ std::string constructRandomTensorKey(std::vector<int> dims, float sparsity) {
   if (pathStr[pathStr.size() - 1] != '/') {
     result << "/";
   }
+  result << "random/";
   result << taco::util::join(dims, "x") << "-" << sparsity << ".tns";
   return result.str();
 }
