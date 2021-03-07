@@ -2,6 +2,7 @@
 #define TACO_BENCH_BENCH_H
 
 #include "benchmark/benchmark.h"
+#include "taco/tensor.h"
 
 // Register a benchmark with the following options:
 // * Millisecond output display
@@ -36,5 +37,7 @@
   ->Iterations(5)                               \
   ->ReportAggregatesOnly(true)                  \
   ->UseRealTime()
+
+taco::TensorBase loadRandomTensor(std::string name, std::vector<int> dims, float sparsity, taco::Format format);
 
 #endif //TACO_BENCH_BENCH_H
