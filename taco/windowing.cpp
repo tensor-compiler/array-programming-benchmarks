@@ -48,7 +48,7 @@ static void bench_add_sparse_strided_window(benchmark::State& state, const Forma
   for (auto _ : state) {
     // Setup.
     state.PauseTiming();
-    Tensor<float> result("B", {(dim-2)/4, (dim-2)/4}, f);
+    Tensor<double> result("B", {(dim-2)/4, (dim-2)/4}, f);
     IndexVar i, j;
     result(i, j) = matrix(i(1, dim-1, 4), j(1, dim-1, 4)) + matrix(i(1, dim-1, 4), j(1, dim-1, 4));
     result.compile();
