@@ -42,19 +42,8 @@ TACO_BENCH_ARG(bench_add_sparse_window, csc, CSC)->Apply(applyBenchSizes);
 static void bench_add_sparse_strided_window(benchmark::State& state, const Format& f) {
   int dim = state.range(0);
   auto sparsity = 0.01;
-  Tensor<float> matrix("A", {dim, dim}, f);
-
-  srand(4357);
-  for (int i = 0; i < dim; i++) {
-    for (int j = 0; j < dim; j++) {
-      float rand_float = (float)rand()/(float)(RAND_MAX);
-      if (rand_float < sparsity) {
-        matrix.insert({i, j}, (float) ((int) (rand_float*3/sparsity)));
-      }
-    }
-  }
+  Tensor<double> matrix = loadRandomTensor("A", {dim, dim}, sparsity, f);
   matrix.pack();
-
 
   for (auto _ : state) {
     // Setup.
