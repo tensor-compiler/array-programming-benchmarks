@@ -150,3 +150,43 @@ class TensorCollectionFROSTT:
         return self.tensors
     def getTensorNames(self):
         return [str(tensor) for tensor in self.getTensors()]
+
+# PydataTensorShifter shifts all elements in the last mode
+# of the input pydata/sparse tensor by one.
+class PydataTensorShifter:
+    def __init__(self):
+        pass
+
+    def shiftLastMode(self, tensor):
+        coords = tensor.coords
+        data = tensor.data
+        resultCoords = []
+        for j in range(len(tensor.shape)):
+            resultCoords.append([0] * len(data))
+        resultValues = [0] * len(data)
+        for i in range(len(data)):
+            for j in range(len(tensor.shape)):
+                resultCoords[j][i] = coords[j][i]
+            resultValues[i] = data[i]
+            resultCoords[-1][i] = (resultCoords[-1][i] + 1) % tensor.shape[-1]
+        return sparse.COO(resultCoords, resultValues, tensor.shape)
+
+# ScipyTensorShifter shifts all elements in the last mode
+# of the input scipy/sparse tensor by one.
+class ScipyTensorShifter:
+    def __init__(self, format):
+        self.format = format
+
+    def shiftLastMode(self, tensor):
+        dok = scipy.sparse.dok_matrix(tensor)
+        result = scipy.sparse.dok_matrix(tensor.shape)
+        for coord, val in dok.items():
+            newCoord = list(coord[:])
+            newCoord[-1] = (newCoord[-1] + 1) % tensor.shape[-1]
+            result[tuple(newCoord)] = val
+        if self.format == "csr":
+            return scipy.sparse.csr_matrix(result)
+        elif self.format == "csc":
+            return scipy.sparse.csc_matrix(result)
+        else:
+            assert(False)
