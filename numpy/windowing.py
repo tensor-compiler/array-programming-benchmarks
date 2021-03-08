@@ -56,11 +56,12 @@ def bench_add_pydata_sparse_window(tacoBench, dim, config):
 
 @pytest.mark.parametrize("dim", [5000, 10000, 20000])
 @pytest.mark.parametrize("format", ['csr', 'csc'])
-def bench_add_sparse_strided_window(tacoBench, dim, format):
-    loader = ScipySparseTensorLoader(format)
+@pytest.mark.parametrize("strideWidth", [2, 4, 8])
+def bench_add_sparse_strided_window(tacoBench, dim, format, strideWidth):
+    loader = RandomScipySparseTensorLoader(format)
     matrix = loader.random((dim, dim), 0.01)
     def bench():
-        x = matrix[1:(dim-1):4, 1:(dim-1):4] 
+        x = matrix[0:dim:strideWidth, 0:dim:strideWidth] 
         res = x + x
     tacoBench(bench)
 
@@ -76,11 +77,12 @@ def bench_add_sparse_index_set(tacoBench, dim, format):
     tacoBench(bench)
 
 @pytest.mark.parametrize("dim", [5000, 10000, 20000])
-def bench_add_pydata_sparse_strided_window(tacoBench, dim):
+@pytest.mark.parametrize("strideWidth", [2, 4, 8])
+def bench_add_pydata_sparse_strided_window(tacoBench, dim, strideWidth):
     loader = RandomPydataSparseTensorLoader()
     matrix = loader.random((dim, dim), 0.01)
     def bench():
-        x = matrix[1:(dim-1):4, 1:(dim-1):4] 
+        x = matrix[0:dim:strideWidth, 0:dim:strideWidth] 
         res = x + x
     tacoBench(bench)
 
