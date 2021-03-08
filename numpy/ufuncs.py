@@ -2,6 +2,7 @@ import numpy
 from scipy.sparse import random, csr_matrix
 import sparse
 import pytest
+from util import TensorCollectionFROSTT, PydataTensorShifter
 
 # TODO (rohany): Ask hameer about this. pydata/sparse isn't happy when
 #  given this ufunc to evaluate.
@@ -85,3 +86,16 @@ def bench_pydata_import_ufunc_sparse(tacoBench, dim, ufunc):
         return C
     tacoBench(bench)
     print("Result", bench())
+
+# Run benchmarks against the FROSTT collection.
+FROSTTTensors = TensorCollectionFROSTT()
+@pytest.mark.parametrize("tensor", FROSTTTensors.getTensors(), ids=FROSTTTensors.getTensorNames())
+def bench_pydata_frostt_ufunc_sparse(tacoBench, tensor):
+    frTensor = tensor.load()
+    shifter = PydataTensorShifter()
+    other = shifter.shiftLastMode(frTensor).astype('int64')
+    def bench():
+        # TODO (rohany): Expand this test beyond ldexp.
+        c = numpy.ldexp(frTensor, other)
+        return c
+    tacoBench(bench)

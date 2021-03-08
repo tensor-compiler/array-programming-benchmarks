@@ -21,11 +21,10 @@ mkdir -p data/FROSTT
 for i in ${!TENSOR_URLS[@]}; do
     name=${TENSOR_NAMES[$i]}
     url=${TENSOR_URLS[$i]}
-    outdir="data/FROSTT/$name"
-    if [ -d "$outdir" ]; then
+    out="data/FROSTT/$name.tns"
+    if [ -f "$out" ]; then
         continue
     fi
-    echo "Downloading tensor $name to $outdir"
-    mkdir "$outdir"
-    curl $url | gzip -d -c > "$outdir/tensor.frostt"
+    echo "Downloading tensor $name to $out"
+    curl $url | gzip -d -c > "$out"
 done
