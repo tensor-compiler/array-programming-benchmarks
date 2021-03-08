@@ -20,16 +20,17 @@ class TnsFileLoader:
         with open(path, 'r') as f:
             for line in f:
                 data = line.split(' ')
-                coords = [int(coord) - 1 for coord in data[:len(data) - 1]]
-                # TODO (rohany): What if we want this to be an integer?
-                value = float(data[-1])
                 if first:
                     first = False
-                    dims = [0] * len(coords)
-                for i in range(len(coords)):
-                    dims[i] = max(dims[i], coords[i] + 1)
-                coordinates.append(coords)
-                values.append(value)
+                    dims = [0] * (len(data) - 1)
+                    for i in range(len(data) - 1):
+                        coordinates.append([])
+
+                for i in range(len(data) - 1):
+                    coordinates[i].append(int(data[i]) - 1)
+                    dims[i] = max(dims[i], coordinates[i][-1] + 1)
+                # TODO (rohany): What if we want this to be an integer?
+                values.append(float(data[-1]))
         return dims, coordinates, values
 
 # TnsFileDumper dumps a dictionary of coordinates to values
@@ -57,17 +58,10 @@ class ScipySparseTensorLoader:
 
     def load(self, path):
         dims, coords, values = self.loader.load(path)
-        dok = scipy.sparse.dok_matrix(tuple(dims))
-        for i in range(len(coords)):
-            coord = coords[i]
-            value = values[i]
-            dok[tuple(coord)] = value
-        # TODO (rohany): We could parametrize this by what kind of scipy.sparse
-        #  matrix we want to make.
         if self.format == "csr":
-            return scipy.sparse.csr_matrix(dok)
+            return scipy.sparse.csr_matrix((values, (coords[0], coords[1])), shape=tuple(dims))
         elif self.format == "csc":
-            return scipy.sparse.csc_matrix(dok)
+            return scipy.sparse.csc_matrix((values, (coords[0], coords[1])), shape=tuple(dims))
         else:
             assert(False)
 
@@ -79,12 +73,7 @@ class PydataSparseTensorLoader:
     
     def load(self, path):
         dims, coords, values = self.loader.load(path)
-        dok = sparse.DOK(tuple(dims))
-        for i in range(len(coords)):
-            coord = coords[i]
-            value = values[i]
-            dok[tuple(coord)] = value
-        return sparse.COO(dok)
+        return sparse.COO(coords, values, tuple(dims))
 
 # construct_random_tensor_key constructs a unique key that represents
 # a random tensor parameterized by the chosen shape and sparsity.
