@@ -34,10 +34,11 @@
   BENCHMARK_CAPTURE(bench, name, __VA_ARGS__)   \
   ->Unit(benchmark::kMicrosecond)               \
   ->Repetitions(10)                             \
-  ->Iterations(5)                               \
+  ->Iterations(1)                               \
   ->ReportAggregatesOnly(true)                  \
   ->UseRealTime()
 
+std::string getTacoTensorPath();
 taco::TensorBase loadRandomTensor(std::string name, std::vector<int> dims, float sparsity, taco::Format format);
 
 template<typename T>
