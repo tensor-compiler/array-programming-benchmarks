@@ -3,9 +3,7 @@ import pytest
 def tacoBench(benchmark):
     def f(func):
         # Take statistics based on 10 rounds.
-        benchmark.pedantic(func, rounds=10, iterations=1)
-        # How do i set please use 10 rounds...
-        # benchmark(func)
+        benchmark.pedantic(func, rounds=10, iterations=1, warmup_rounds=1)
     return f
 
 def pytest_addoption(parser):
