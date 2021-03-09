@@ -167,6 +167,7 @@ static void bench_frostt_ufunc(benchmark::State& state, std::string tnsPath, Fun
   for (auto _ : state) {
     state.PauseTiming();
     Tensor<int64_t> result("result", frosttTensor.getDimensions(), frosttTensor.getFormat());
+    result.setAssembleWhileCompute(true);
     switch (frosttTensor.getOrder()) {
       case 4: {
         IndexVar i, j, k, l;
@@ -185,7 +186,6 @@ static void bench_frostt_ufunc(benchmark::State& state, std::string tnsPath, Fun
     result.compile();
     state.ResumeTiming();
 
-    result.assemble();
     result.compute();
   }
 }
