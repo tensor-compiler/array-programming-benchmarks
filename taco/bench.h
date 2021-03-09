@@ -12,7 +12,7 @@
 #define TACO_BENCH(bench)         \
   BENCHMARK(bench)                \
   ->Unit(benchmark::kMillisecond) \
-  ->Repetitions(10)               \
+  ->Repetitions(1)               \
   ->Iterations(1)                 \
   ->ReportAggregatesOnly(true)    \
   ->UseRealTime()
