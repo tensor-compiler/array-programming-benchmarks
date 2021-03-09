@@ -167,7 +167,9 @@ class PydataTensorShifter:
         for i in range(len(data)):
             for j in range(len(tensor.shape)):
                 resultCoords[j][i] = coords[j][i]
-            resultValues[i] = data[i]
+            # resultValues[i] = data[i]
+            # TODO (rohany): Temporarily use a constant as the value.
+            resultValues[i] = 2
             resultCoords[-1][i] = (resultCoords[-1][i] + 1) % tensor.shape[-1]
         return sparse.COO(resultCoords, resultValues, tensor.shape)
 
@@ -183,7 +185,9 @@ class ScipyTensorShifter:
         for coord, val in dok.items():
             newCoord = list(coord[:])
             newCoord[-1] = (newCoord[-1] + 1) % tensor.shape[-1]
-            result[tuple(newCoord)] = val
+            # result[tuple(newCoord)] = val
+            # TODO (rohany): Temporarily use a constant as the value.
+            result[tuple(newCoord)] = 2
         if self.format == "csr":
             return scipy.sparse.csr_matrix(result)
         elif self.format == "csc":
