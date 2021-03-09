@@ -90,12 +90,12 @@ def bench_pydata_import_ufunc_sparse(tacoBench, dim, ufunc):
 # Run benchmarks against the FROSTT collection.
 FROSTTTensors = TensorCollectionFROSTT()
 @pytest.mark.parametrize("tensor", FROSTTTensors.getTensors(), ids=FROSTTTensors.getTensorNames())
-def bench_pydata_frostt_ufunc_sparse(tacoBench, tensor):
-    frTensor = tensor.load()
+@pytest.mark.parametrize("ufunc", [numpy.logical_xor, numpy.ldexp, numpy.right_shift])
+def bench_pydata_frostt_ufunc_sparse(tacoBench, tensor, ufunc):
+    frTensor = tensor.load().astype('int64')
     shifter = PydataTensorShifter()
     other = shifter.shiftLastMode(frTensor).astype('int64')
     def bench():
-        # TODO (rohany): Expand this test beyond ldexp.
-        c = numpy.ldexp(frTensor, other)
+        c = ufunc(frTensor, other)
         return c
     tacoBench(bench)
