@@ -41,17 +41,33 @@
 std::string getTacoTensorPath();
 taco::TensorBase loadRandomTensor(std::string name, std::vector<int> dims, float sparsity, taco::Format format);
 
-template<typename T>
-taco::Tensor<T> shiftLastMode(std::string name, taco::Tensor<T> original) {
+template<typename T, typename T2>
+taco::Tensor<T> shiftLastMode(std::string name, taco::Tensor<T2> original) {
   taco::Tensor<T> result(name, original.getDimensions(), original.getFormat());
   std::vector<int> coords(original.getOrder());
-  for (auto& value : taco::iterate<T>(original)) {
+  for (auto& value : taco::iterate<T2>(original)) {
     for (int i = 0; i < original.getOrder(); i++) {
       coords[i] = value.first[i];
     }
     int lastMode = original.getOrder() - 1;
     coords[lastMode] = (coords[lastMode] + 1) % original.getDimension(lastMode);
-    result.insert(coords, value.second);
+    // TODO (rohany): Temporarily use a constant value here.
+    result.insert(coords, T(2));
+  }
+  result.pack();
+  return result;
+}
+
+template<typename T>
+taco::Tensor<T> readIntoType(std::string name, std::string path, taco::ModeFormat format) {
+  auto tensor = taco::read(path, format);
+  taco::Tensor<T> result(name, tensor.getDimensions(), tensor.getFormat());
+  std::vector<int> coords(tensor.getOrder());
+  for (auto& value : taco::iterate<double>(tensor)) {
+    for (int i = 0; i < tensor.getOrder(); i++) {
+      coords[i] = value.first[i];
+    }
+    result.insert(coords, T(value.second));
   }
   result.pack();
   return result;
