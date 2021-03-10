@@ -196,6 +196,8 @@ class ScipyTensorShifter:
         else:
             assert(False)
 
+# ScipyMatrixMarketTensorLoader loads tensors in the matrix market format
+# into scipy.sparse matrices.
 class ScipyMatrixMarketTensorLoader:
     def __init__(self, format):
         self.format = format 
@@ -209,6 +211,8 @@ class ScipyMatrixMarketTensorLoader:
         else:
             assert(False)
 
+# PydataMatrixMarketTensorLoader loads tensors in the matrix market format
+# into pydata.sparse matrices.
 class PydataMatrixMarketTensorLoader:
     def __init__(self):
         pass
@@ -217,6 +221,7 @@ class PydataMatrixMarketTensorLoader:
         coo = scipy.io.mmread(path)
         return sparse.COO.from_scipy_sparse(coo)
 
+# SuiteSparseTensor represents a tensor in the suitesparse collection.
 class SuiteSparseTensor:
     def __init__(self, path):
         self.path = path
@@ -228,10 +233,12 @@ class SuiteSparseTensor:
     def load(self, loader):
         return loader.load(self.path)
 
+# TensorCollectionSuiteSparse represents the set of all downloaded
+# SuiteSparse tensors.
 class TensorCollectionSuiteSparse:
     def __init__(self):
         data = os.path.join(TENSOR_PATH, "suitesparse")
-        sstensors= glob.glob(os.path.join(data, "*.mtx"))
+        sstensors = glob.glob(os.path.join(data, "*.mtx"))
         self.tensors = [SuiteSparseTensor(t) for t in sstensors]
 
     def getTensors(self):
