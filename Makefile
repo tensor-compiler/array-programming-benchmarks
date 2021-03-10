@@ -5,6 +5,9 @@ BENCHFLAGS := #"--benchmark-group-by=func"
 IGNORE += taco
 IGNORE_FLAGS := $(addprefix --ignore=, $(IGNORE)) 
 
+GRAPHBLAS := "OFF"
+OPENMP := "OFF"
+
 export TACO_TENSOR_PATH = data/
 
 # To group benchmark output by benchmark, use BENCHFLAGS=--benchmark-group-by=func.
@@ -21,7 +24,7 @@ else
 endif
 
 taco/build/taco-bench: check-and-reinit-submodules taco/benchmark/googletest
-	mkdir -p taco/build/ && cd taco/build/ && cmake ../ && make -j4 taco-bench 
+	mkdir -p taco/build/ && cd taco/build/ && cmake -DOPENMP=$(OPENMP) -DGRAPHBLAS=$(GRAPHBLAS) ../ && $(MAKE) taco-bench 
 
 taco/benchmark/googletest: check-and-reinit-submodules
 	if [ ! -d "taco/benchmark/googletest" ] ; then git clone https://github.com/google/googletest taco/benchmark/googletest; fi

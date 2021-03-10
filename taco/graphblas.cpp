@@ -1,3 +1,5 @@
+#if GRAPHBLAS
+
 #include "bench.h"
 #include "benchmark/benchmark.h"
 
@@ -5,6 +7,10 @@
 #include "taco/format.h"
 #include "taco/index_notation/index_notation.h"
 #include "taco/index_notation/tensor_operator.h"
+
+extern "C" {
+#include "GraphBLAS.h"
+}
 
 #include <vector>
 #include <limits>
@@ -76,4 +82,24 @@ static void bench_mxv_taco(benchmark::State& state) {
   taco_set_num_threads(1);
 }
 
+static void bench_mxv_suitesparse(benchmark::State& state) {
+  GrB_init(GrB_BLOCKING);
+
+  Tensor<double> T = read("/data/scratch/s3chou/formats-bench/data/webbase_1M.mtx", CSR);
+
+  for (const auto& c : T) {
+    //A.insert(c.first.toVector(), c.second);
+  }
+
+  GrB_Vector x = nullptr;
+  GrB_Index n;
+  GrB_Vector_new(&x, GrB_FP64, n);
+
+  for (auto _ : state) {
+  }
+}
+
 TACO_BENCH(bench_mxv_taco);
+TACO_BENCH(bench_mxv_suitesparse);
+
+#endif

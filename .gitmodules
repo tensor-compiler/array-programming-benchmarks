@@ -4,3 +4,6 @@
 [submodule "taco/benchmark"]
 	path = taco/benchmark
 	url = ../../google/benchmark.git
+[submodule "taco/suitesparse"]
+	path = taco/suitesparse
+	url = ../../DrTimothyAldenDavis/GraphBLAS.git
