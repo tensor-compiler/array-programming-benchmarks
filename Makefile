@@ -8,10 +8,11 @@ IGNORE_FLAGS := $(addprefix --ignore=,$(IGNORE))
 
 benches_name := $(patsubst %.py,%,$(BENCHES))
 benches_name := $(subst /,_,$(benches_name))
+benches_name := $(subst *,_,$(benches_name))
 NUMPY_OUT = results/numpy/$(benches_name)benches_$(shell date +%Y_%m_%d_%H%M%S).csv
 
 # Taco Specific Flags
-TACO_OUT = results/taco/$(BENCHES)benches_$(shell date +%Y_%m_%d_%H%M%S).csv
+TACO_OUT = results/taco/$(benches_name)benches_$(shell date +%Y_%m_%d_%H%M%S).csv
 
 GRAPHBLAS := "OFF"
 OPENMP := "OFF"
