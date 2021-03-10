@@ -1,9 +1,17 @@
 BENCHES := ""
 BENCHFLAGS := #"--benchmark-group-by=func"
 
+# Pytest Specific Flags
 #IGNORE := numpy/image.py
-IGNORE += taco
-IGNORE_FLAGS := $(addprefix --ignore=, $(IGNORE)) 
+IGNORE += taco 
+IGNORE_FLAGS := $(addprefix --ignore=,$(IGNORE)) 
+
+benches_name := $(patsubst %.py,%,$(BENCHES))
+benches_name := $(subst /,_,$(benches_name))
+NUMPY_OUT = results/numpy/$(benches_name)benches_$(shell date +%Y_%m_%d_%H%M%S).csv
+
+# Taco Specific Flags
+TACO_OUT = results/taco/$(BENCHES)benches_$(shell date +%Y_%m_%d_%H%M%S).csv
 
 GRAPHBLAS := "OFF"
 OPENMP := "OFF"
@@ -13,21 +21,28 @@ export TACO_TENSOR_PATH = data/
 # To group benchmark output by benchmark, use BENCHFLAGS=--benchmark-group-by=func.
 # To additionally group by a parameterized value, add on ",param:<paramname>" to the
 # command above.
-python-bench: numpy/*.py
-	pytest $(IGNORE_FLAGS) $(BENCHFLAGS) $(BENCHES)
+python-bench: results numpy/*.py
+	echo $(benches_name)
+	pytest $(IGNORE_FLAGS) --csv $(NUMPY_OUT) $(BENCHFLAGS) $(BENCHES)
 
 taco-bench: taco/build/taco-bench
 ifeq ($(BENCHES),"")
-	LD_LIBRARY_PATH=taco/build/lib/:$(LD_LIBRARY_PATH) taco/build/taco-bench $(BENCHFLAGS)
+	LD_LIBRARY_PATH=taco/build/lib/:$(LD_LIBRARY_PATH) taco/build/taco-bench $(BENCHFLAGS) --benchmark_out_format="csv" --benchmark_out="$(TACO_OUT)"
+
 else
-	LD_LIBRARY_PATH=taco/build/lib/:$(LD_LIBRARY_PATH) taco/build/taco-bench $(BENCHFLAGS) --benchmark_filter="$(BENCHES)"
+	LD_LIBRARY_PATH=taco/build/lib/:$(LD_LIBRARY_PATH) taco/build/taco-bench $(BENCHFLAGS) --benchmark_filter="$(BENCHES)" --benchmark_out_format="csv" --benchmark_out="$(TACO_OUT)"
 endif
 
-taco/build/taco-bench: check-and-reinit-submodules taco/benchmark/googletest
+taco/build/taco-bench: results check-and-reinit-submodules taco/benchmark/googletest
 	mkdir -p taco/build/ && cd taco/build/ && cmake -DOPENMP=$(OPENMP) -DGRAPHBLAS=$(GRAPHBLAS) ../ && $(MAKE) taco-bench 
 
 taco/benchmark/googletest: check-and-reinit-submodules
 	if [ ! -d "taco/benchmark/googletest" ] ; then git clone https://github.com/google/googletest taco/benchmark/googletest; fi
+
+.PHONY: csvs
+results:
+	mkdir -p results/taco
+	mkdir -p results/numpy
 
 .PHONY: check-and-reinit-submodules
 check-and-reinit-submodules:

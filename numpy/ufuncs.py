@@ -66,6 +66,7 @@ def get_ufunc_str(ufunc):
         return "2^"
 
 #@pytest.mark.parametrize("dim", [250, 500, 750, 1000, 2500, 5000, 7500, 8000])
+@pytest.mark.skip(reason="Not using this import type anymore")
 @pytest.mark.parametrize("dim", [10])
 @pytest.mark.parametrize("ufunc", [numpy.logical_xor])
 def bench_pydata_import_ufunc_sparse(tacoBench, dim, ufunc):
