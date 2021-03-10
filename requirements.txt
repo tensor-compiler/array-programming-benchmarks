@@ -10,6 +10,7 @@ py-cpuinfo==7.0.0
 pyparsing==2.4.7
 pytest==6.2.2
 pytest-benchmark==3.2.3
+pytest-csv==2.0.2
 scipy==1.6.0
 sparse==0.11.2
 toml==0.10.2
