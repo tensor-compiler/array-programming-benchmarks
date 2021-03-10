@@ -1,4 +1,5 @@
 import scipy.sparse
+import scipy.io
 import sparse
 import os
 import glob
@@ -194,3 +195,46 @@ class ScipyTensorShifter:
             return scipy.sparse.csc_matrix(result)
         else:
             assert(False)
+
+class ScipyMatrixMarketTensorLoader:
+    def __init__(self, format):
+        self.format = format 
+
+    def load(self, path):
+        coo = scipy.io.mmread(path)
+        if self.format == "csr":
+            return scipy.sparse.csr_matrix(coo)
+        elif self.format == "csc":
+            return scipy.sparse.csc_matrix(coo)
+        else:
+            assert(False)
+
+class PydataMatrixMarketTensorLoader:
+    def __init__(self):
+        pass
+
+    def load(self, path):
+        coo = scipy.io.mmread(path)
+        return sparse.COO.from_scipy_sparse(coo)
+
+class SuiteSparseTensor:
+    def __init__(self, path):
+        self.path = path
+
+    def __str__(self):
+        f = os.path.split(self.path)[1]
+        return f.replace(".mtx", "")
+
+    def load(self, loader):
+        return loader.load(self.path)
+
+class TensorCollectionSuiteSparse:
+    def __init__(self):
+        data = os.path.join(TENSOR_PATH, "suitesparse")
+        sstensors= glob.glob(os.path.join(data, "*.mtx"))
+        self.tensors = [SuiteSparseTensor(t) for t in sstensors]
+
+    def getTensors(self):
+        return self.tensors
+    def getTensorNames(self):
+        return [str(tensor) for tensor in self.getTensors()]
