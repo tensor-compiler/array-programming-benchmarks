@@ -151,7 +151,7 @@ static void applyBenchSizes(benchmark::internal::Benchmark* b) {
 TACO_BENCH_ARGS(bench_ufunc_sparse, xor_0.01, 0.01, "xor")->Apply(applyBenchSizes);
 TACO_BENCH_ARGS(bench_ufunc_sparse, rightShift_0.01, 0.01, ">>")->Apply(applyBenchSizes);
 
-static void bench_frostt_ufunc(benchmark::State& state, std::string tnsPath) {
+static void bench_frostt_ufunc(benchmark::State& state, std::string tnsPath, Func op) {
   auto path = getTacoTensorPath();
   auto frosttTensorPath = path;
   if (frosttTensorPath[frosttTensorPath.size() - 1] != '/') {
@@ -161,27 +161,22 @@ static void bench_frostt_ufunc(benchmark::State& state, std::string tnsPath) {
   frosttTensorPath += tnsPath;
 
   // TODO (rohany): What format do we want to do here?
-  auto frosttTensor = read(frosttTensorPath, Sparse);
-  Tensor<double> other = shiftLastMode<double>("other", frosttTensor);
-
-  // TODO (rohany): Parametrize by the ufunc as well.
-  // TODO (rohany): Certain ufuncs need for operands to be of a certain type.
-  //  ldexp for example requires the right hand side to be an integer (for python
-  //  at least). Not sure how we'll handle that for this.
-  Func ldExp("2^", Ldexp(), leftIncAlgebra());
+  auto frosttTensor = readIntoType<int64_t>("frostt", frosttTensorPath, Sparse);
+  Tensor<int64_t> other = shiftLastMode<int64_t, int64_t>("other", frosttTensor);
 
   for (auto _ : state) {
     state.PauseTiming();
-    Tensor<double> result("result", frosttTensor.getDimensions(), frosttTensor.getFormat());
+    Tensor<int64_t> result("result", frosttTensor.getDimensions(), frosttTensor.getFormat());
+    result.setAssembleWhileCompute(true);
     switch (frosttTensor.getOrder()) {
       case 4: {
         IndexVar i, j, k, l;
-        result(i, j, k, l) = ldExp(frosttTensor(i, j, k, l), other(i, j, k, l));
+        result(i, j, k, l) = op(frosttTensor(i, j, k, l), other(i, j, k, l));
         break;
       }
       case 5: {
         IndexVar i, j, k, l, m;
-        result(i, j, k, l, m) = ldExp(frosttTensor(i, j, k, l, m), other(i, j, k, l, m));
+        result(i, j, k, l, m) = op(frosttTensor(i, j, k, l, m), other(i, j, k, l, m));
         break;
       }
       default:
@@ -189,22 +184,25 @@ static void bench_frostt_ufunc(benchmark::State& state, std::string tnsPath) {
         return;
     }
     result.compile();
-    result.assemble();
     state.ResumeTiming();
 
     result.compute();
   }
 }
 
-// TODO (rohany): We can define another macro to "nest" defining benchmarks
-//  for each of the ufuncs that we want to operate on.
+Func ldExp("ldexp", Ldexp(), leftIncAlgebra());
+Func rightShift("rightShift", RightShift(), leftIncAlgebra());
+Func xorOp("xor", GeneralAdd(), xorAlgebra());
+
 #define FOREACH_FROSTT_TENSOR(__func__) \
   __func__(nips, "nips.tns") \
   __func__(uber_pickups, "uber-pickups.tns") \
-  __func__(chicaco_crime, "chicago-crime.tns") \
+  __func__(chicago_crime, "chicago-crime.tns") \
   __func__(lbnl_network, "lbnl-network.tns")
 
 #define DECLARE_FROSTT_UFUNC_BENCH(name, path) \
-  TACO_BENCH_ARGS(bench_frostt_ufunc, name, path);
+   TACO_BENCH_ARGS(bench_frostt_ufunc, name/xor, path, xorOp); \
+   TACO_BENCH_ARGS(bench_frostt_ufunc, name/ldExp, path, ldExp); \
+   TACO_BENCH_ARGS(bench_frostt_ufunc, name/rightShift, path, rightShift); \
 
 FOREACH_FROSTT_TENSOR(DECLARE_FROSTT_UFUNC_BENCH)

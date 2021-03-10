@@ -1,4 +1,5 @@
 import scipy.sparse
+import scipy.io
 import sparse
 import os
 import glob
@@ -167,7 +168,9 @@ class PydataTensorShifter:
         for i in range(len(data)):
             for j in range(len(tensor.shape)):
                 resultCoords[j][i] = coords[j][i]
-            resultValues[i] = data[i]
+            # resultValues[i] = data[i]
+            # TODO (rohany): Temporarily use a constant as the value.
+            resultValues[i] = 2
             resultCoords[-1][i] = (resultCoords[-1][i] + 1) % tensor.shape[-1]
         return sparse.COO(resultCoords, resultValues, tensor.shape)
 
@@ -183,10 +186,55 @@ class ScipyTensorShifter:
         for coord, val in dok.items():
             newCoord = list(coord[:])
             newCoord[-1] = (newCoord[-1] + 1) % tensor.shape[-1]
-            result[tuple(newCoord)] = val
+            # result[tuple(newCoord)] = val
+            # TODO (rohany): Temporarily use a constant as the value.
+            result[tuple(newCoord)] = 2
         if self.format == "csr":
             return scipy.sparse.csr_matrix(result)
         elif self.format == "csc":
             return scipy.sparse.csc_matrix(result)
         else:
             assert(False)
+
+class ScipyMatrixMarketTensorLoader:
+    def __init__(self, format):
+        self.format = format 
+
+    def load(self, path):
+        coo = scipy.io.mmread(path)
+        if self.format == "csr":
+            return scipy.sparse.csr_matrix(coo)
+        elif self.format == "csc":
+            return scipy.sparse.csc_matrix(coo)
+        else:
+            assert(False)
+
+class PydataMatrixMarketTensorLoader:
+    def __init__(self):
+        pass
+
+    def load(self, path):
+        coo = scipy.io.mmread(path)
+        return sparse.COO.from_scipy_sparse(coo)
+
+class SuiteSparseTensor:
+    def __init__(self, path):
+        self.path = path
+
+    def __str__(self):
+        f = os.path.split(self.path)[1]
+        return f.replace(".mtx", "")
+
+    def load(self, loader):
+        return loader.load(self.path)
+
+class TensorCollectionSuiteSparse:
+    def __init__(self):
+        data = os.path.join(TENSOR_PATH, "suitesparse")
+        sstensors= glob.glob(os.path.join(data, "*.mtx"))
+        self.tensors = [SuiteSparseTensor(t) for t in sstensors]
+
+    def getTensors(self):
+        return self.tensors
+    def getTensorNames(self):
+        return [str(tensor) for tensor in self.getTensors()]
