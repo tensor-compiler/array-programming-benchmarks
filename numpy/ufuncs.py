@@ -93,6 +93,8 @@ FROSTTTensors = TensorCollectionFROSTT()
 @pytest.mark.parametrize("tensor", FROSTTTensors.getTensors(), ids=FROSTTTensors.getTensorNames())
 @pytest.mark.parametrize("ufunc", [numpy.logical_xor, numpy.ldexp, numpy.right_shift])
 def bench_pydata_frostt_ufunc_sparse(tacoBench, tensor, ufunc):
+    benchmark.extra_info['tensor_str'] = str(tensor)
+    benchmark.extra_info['ufunc_str'] = ufunc.__name__
     frTensor = tensor.load().astype('int64')
     shifter = PydataTensorShifter()
     other = shifter.shiftLastMode(frTensor).astype('int64')
@@ -106,7 +108,7 @@ SuiteSparseTensors = TensorCollectionSuiteSparse()
 @pytest.mark.parametrize("tensor", SuiteSparseTensors.getTensors(), ids=SuiteSparseTensors.getTensorNames())
 @pytest.mark.parametrize("ufunc", [numpy.logical_xor, numpy.ldexp, numpy.right_shift])
 def bench_pydata_suitesparse_ufunc_sparse(tacoBench, tensor, ufunc):
-    ssTensor = tensor.load(PydataMatrixMarketTensorLoader()).astype('int64')
+    ssTensor = tensor[1].load(PydataMatrixMarketTensorLoader()).astype('int64')
     shifter = PydataTensorShifter()
     other = shifter.shiftLastMode(ssTensor).astype('int64')
     def bench():

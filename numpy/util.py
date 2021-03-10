@@ -151,6 +151,8 @@ class TensorCollectionFROSTT:
         return self.tensors
     def getTensorNames(self):
         return [str(tensor) for tensor in self.getTensors()]
+    def getTensorsAndNames(self):
+        return [(str(tensor), tensor) for tensor in self.getTensors()]
 
 # PydataTensorShifter shifts all elements in the last mode
 # of the input pydata/sparse tensor by one.
@@ -249,3 +251,5 @@ class TensorCollectionSuiteSparse:
         return self.tensors
     def getTensorNames(self):
         return [str(tensor) for tensor in self.getTensors()]
+    def getTensorsAndNames(self):
+        return [(str(tensor), tensor) for tensor in self.getTensors()]
