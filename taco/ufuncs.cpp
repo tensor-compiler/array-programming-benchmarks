@@ -243,6 +243,9 @@ static void bench_suitesparse_ufunc(benchmark::State& state, Func op) {
   auto ssTensor = readIntoType<int64_t>("ssTensor", tensorPath, CSR);
   auto other = shiftLastMode<int64_t, int64_t>("other", ssTensor);
 
+  state.counters["dimx"] = ssTensor.getDimension(0);
+  state.counters["dimy"] = ssTensor.getDimension(1);
+
   for (auto _ : state) {
     state.PauseTiming();
     Tensor<int64_t> result("result", ssTensor.getDimensions(), ssTensor.getFormat());
@@ -259,9 +262,8 @@ static void bench_suitesparse_ufunc(benchmark::State& state, Func op) {
 static void applySuiteSparse(benchmark::internal::Benchmark* b) {
   std::vector<int64_t> args(ssTensors.tensors.size());
   for (int i = 0; i < ssTensors.tensors.size(); i++) {
-    args[i] = i;
+    b->Arg(i);
   }
-   b->ArgsProduct({args});
 }
 
 TACO_BENCH_ARGS(bench_suitesparse_ufunc, xor, xorOp)->Apply(applySuiteSparse);
