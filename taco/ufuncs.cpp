@@ -1,4 +1,7 @@
 #include <fstream>
+// We're using c++14, so wer're stuck with experimental filesystem.
+#include <experimental/filesystem>
+
 #include "bench.h"
 #include "benchmark/benchmark.h"
 
@@ -206,3 +209,61 @@ Func xorOp("xor", GeneralAdd(), xorAlgebra());
    TACO_BENCH_ARGS(bench_frostt_ufunc, name/rightShift, path, rightShift); \
 
 FOREACH_FROSTT_TENSOR(DECLARE_FROSTT_UFUNC_BENCH)
+
+struct SuiteSparseTensors {
+ SuiteSparseTensors() {
+   auto path = getTacoTensorPath();
+   auto ssTensorPath = path;
+   if (ssTensorPath[ssTensorPath.size() - 1] != '/') {
+     ssTensorPath += "/";
+   }
+   ssTensorPath += "suitesparse/";
+   for (auto& entry : std::experimental::filesystem::directory_iterator(ssTensorPath)) {
+     std::string f(entry.path());
+     // Check that the filename ends with .mtx.
+     if (f.compare(f.size() - 4, 4, ".mtx") == 0) {
+       this->tensors.push_back(entry.path());
+     }
+   }
+   std::cout << util::join(this->tensors) << std::endl;
+ }
+
+ std::vector<std::string> tensors;
+};
+SuiteSparseTensors ssTensors;
+
+static void bench_suitesparse_ufunc(benchmark::State& state, Func op) {
+  int tensorIdx = state.range(0);
+  auto tensorPath = ssTensors.tensors[tensorIdx];
+  auto pathSplit = taco::util::split(tensorPath, "/");
+  auto filename = pathSplit[pathSplit.size() - 1];
+  auto tensorName = taco::util::split(filename, ".")[0];
+  state.SetLabel(tensorName);
+
+  auto ssTensor = readIntoType<int64_t>("ssTensor", tensorPath, CSR);
+  auto other = shiftLastMode<int64_t, int64_t>("other", ssTensor);
+
+  for (auto _ : state) {
+    state.PauseTiming();
+    Tensor<int64_t> result("result", ssTensor.getDimensions(), ssTensor.getFormat());
+    result.setAssembleWhileCompute(true);
+    IndexVar i, j;
+    result(i, j) = op(ssTensor(i, j), other(i, j));
+    result.compile();
+    state.ResumeTiming();
+
+    result.compute();
+  }
+}
+
+static void applySuiteSparse(benchmark::internal::Benchmark* b) {
+  std::vector<int64_t> args(ssTensors.tensors.size());
+  for (int i = 0; i < ssTensors.tensors.size(); i++) {
+    args[i] = i;
+  }
+   b->ArgsProduct({args});
+}
+
+TACO_BENCH_ARGS(bench_suitesparse_ufunc, xor, xorOp)->Apply(applySuiteSparse);
+TACO_BENCH_ARGS(bench_suitesparse_ufunc, ldExp, ldExp)->Apply(applySuiteSparse);
+TACO_BENCH_ARGS(bench_suitesparse_ufunc, rightShift, rightShift)->Apply(applySuiteSparse);

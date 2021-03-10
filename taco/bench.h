@@ -59,8 +59,7 @@ taco::Tensor<T> shiftLastMode(std::string name, taco::Tensor<T2> original) {
 }
 
 template<typename T>
-taco::Tensor<T> readIntoType(std::string name, std::string path, taco::ModeFormat format) {
-  auto tensor = taco::read(path, format);
+taco::Tensor<T> castToType(std::string name, taco::Tensor<double> tensor) {
   taco::Tensor<T> result(name, tensor.getDimensions(), tensor.getFormat());
   std::vector<int> coords(tensor.getOrder());
   for (auto& value : taco::iterate<double>(tensor)) {
@@ -71,6 +70,18 @@ taco::Tensor<T> readIntoType(std::string name, std::string path, taco::ModeForma
   }
   result.pack();
   return result;
+}
+
+template<typename T>
+taco::Tensor<T> readIntoType(std::string name, std::string path, taco::ModeFormat format) {
+  auto tensor = taco::read(path, format);
+  return castToType<T>(name, tensor);
+}
+
+template<typename T>
+taco::Tensor<T> readIntoType(std::string name, std::string path, taco::Format format) {
+  auto tensor = taco::read(path, format);
+  return castToType<T>(name, tensor);
 }
 
 #endif //TACO_BENCH_BENCH_H
