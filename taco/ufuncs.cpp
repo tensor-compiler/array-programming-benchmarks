@@ -225,7 +225,6 @@ struct SuiteSparseTensors {
        this->tensors.push_back(entry.path());
      }
    }
-   std::cout << util::join(this->tensors) << std::endl;
  }
 
  std::vector<std::string> tensors;
