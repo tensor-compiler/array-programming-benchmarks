@@ -38,9 +38,46 @@
   ->ReportAggregatesOnly(true)                  \
   ->UseRealTime()
 
+template<typename T>
+taco::Tensor<T> castToType(std::string name, taco::Tensor<double> tensor) {
+  taco::Tensor<T> result(name, tensor.getDimensions(), tensor.getFormat());
+  std::vector<int> coords(tensor.getOrder());
+  for (auto& value : taco::iterate<double>(tensor)) {
+    for (int i = 0; i < tensor.getOrder(); i++) {
+      coords[i] = value.first[i];
+    }
+    result.insert(coords, T(value.second));
+  }
+  result.pack();
+  return result;
+}
+
+struct TacoTensorFileCache {
+  template<typename T>
+  taco::Tensor<double> read(std::string path, T format) {
+    if (this->lastPath == path) {
+      return lastLoaded;
+    }
+    // TODO (rohany): Not worrying about whether the format was the same as what was asked for.
+    this->lastLoaded = taco::read(path, format);
+    this->lastPath = path;
+    return this->lastLoaded;
+  }
+
+  template<typename T, typename U>
+  taco::Tensor<T> readIntoType(std::string name, std::string path, U format) {
+    auto tensor = this->read<U>(path, format);
+    return castToType<T>(name, tensor);
+  }
+
+  taco::Tensor<double> lastLoaded;
+  std::string lastPath;
+};
+
 std::string getTacoTensorPath();
 taco::TensorBase loadRandomTensor(std::string name, std::vector<int> dims, float sparsity, taco::Format format);
 
+// TODO (rohany): Cache the tensor shifts too.
 template<typename T, typename T2>
 taco::Tensor<T> shiftLastMode(std::string name, taco::Tensor<T2> original) {
   taco::Tensor<T> result(name, original.getDimensions(), original.getFormat());
@@ -61,32 +98,6 @@ taco::Tensor<T> shiftLastMode(std::string name, taco::Tensor<T2> original) {
   }
   result.pack();
   return result;
-}
-
-template<typename T>
-taco::Tensor<T> castToType(std::string name, taco::Tensor<double> tensor) {
-  taco::Tensor<T> result(name, tensor.getDimensions(), tensor.getFormat());
-  std::vector<int> coords(tensor.getOrder());
-  for (auto& value : taco::iterate<double>(tensor)) {
-    for (int i = 0; i < tensor.getOrder(); i++) {
-      coords[i] = value.first[i];
-    }
-    result.insert(coords, T(value.second));
-  }
-  result.pack();
-  return result;
-}
-
-template<typename T>
-taco::Tensor<T> readIntoType(std::string name, std::string path, taco::ModeFormat format) {
-  auto tensor = taco::read(path, format);
-  return castToType<T>(name, tensor);
-}
-
-template<typename T>
-taco::Tensor<T> readIntoType(std::string name, std::string path, taco::Format format) {
-  auto tensor = taco::read(path, format);
-  return castToType<T>(name, tensor);
 }
 
 #endif //TACO_BENCH_BENCH_H
