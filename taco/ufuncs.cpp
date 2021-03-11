@@ -1,6 +1,7 @@
 #include <fstream>
 // We're using c++14, so wer're stuck with experimental filesystem.
 #include <experimental/filesystem>
+#include <tuple>
 
 #include "bench.h"
 #include "benchmark/benchmark.h"
@@ -154,9 +155,34 @@ static void applyBenchSizes(benchmark::internal::Benchmark* b) {
 TACO_BENCH_ARGS(bench_ufunc_sparse, xor_0.01, 0.01, "xor")->Apply(applyBenchSizes);
 TACO_BENCH_ARGS(bench_ufunc_sparse, rightShift_0.01, 0.01, ">>")->Apply(applyBenchSizes);
 
-// fileCache is a cache of paths to tensors so that reads of the same tensor
-// don't need to perform duplicate disk IO.
-TacoTensorFileCache fileCache;
+// UfuncInputCache is a cache for the input to ufunc benchmarks. These benchmarks
+// operate on a tensor loaded from disk and the same tensor shifted slightly. Since
+// these operations are run multiple times, we can save alot in benchmark startup
+// time from caching these inputs.
+struct UfuncInputCache {
+  template<typename U>
+  std::pair<taco::Tensor<int64_t>, taco::Tensor<int64_t>> getUfuncInput(std::string path, U format) {
+    // See if the paths match.
+    if (this->lastPath == path) {
+      // TODO (rohany): Not worrying about whether the format was the same as what was asked for.
+      return std::make_pair(this->inputTensor, this->otherTensor);
+    }
+
+    // Otherwise, we missed the cache. Load in the target tensor and process it.
+    this->lastPath = path;
+    this->lastLoaded = taco::read(path, format);
+    this->inputTensor = castToType<int64_t>("A", this->lastLoaded);
+    this->otherTensor = shiftLastMode<int64_t, int64_t>("B", this->inputTensor);
+    return std::make_pair(this->inputTensor, this->otherTensor);
+  }
+
+  taco::Tensor<double> lastLoaded;
+  std::string lastPath;
+
+  taco::Tensor<int64_t> inputTensor;
+  taco::Tensor<int64_t> otherTensor;
+};
+UfuncInputCache inputCache;
 
 static void bench_frostt_ufunc(benchmark::State& state, std::string tnsPath, Func op) {
   auto path = getTacoTensorPath();
@@ -168,8 +194,8 @@ static void bench_frostt_ufunc(benchmark::State& state, std::string tnsPath, Fun
   frosttTensorPath += tnsPath;
 
   // TODO (rohany): What format do we want to do here?
-  auto frosttTensor = fileCache.readIntoType<int64_t>("frostt", frosttTensorPath, Sparse);
-  Tensor<int64_t> other = shiftLastMode<int64_t, int64_t>("other", frosttTensor);
+  Tensor<int64_t> frosttTensor, other;
+  std::tie(frosttTensor, other) = inputCache.getUfuncInput(frosttTensorPath, Sparse);
 
   for (auto _ : state) {
     state.PauseTiming();
@@ -243,8 +269,8 @@ static void bench_suitesparse_ufunc(benchmark::State& state, Func op) {
   auto tensorName = taco::util::split(filename, ".")[0];
   state.SetLabel(tensorName);
 
-  auto ssTensor = fileCache.readIntoType<int64_t>("ssTensor", tensorPath, CSR);
-  auto other = shiftLastMode<int64_t, int64_t>("other", ssTensor);
+  taco::Tensor<int64_t> ssTensor, other;
+  std::tie(ssTensor, other) = inputCache.getUfuncInput(tensorPath, CSR);
 
   state.counters["dimx"] = ssTensor.getDimension(0);
   state.counters["dimy"] = ssTensor.getDimension(1);

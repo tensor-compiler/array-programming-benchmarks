@@ -38,6 +38,9 @@
   ->ReportAggregatesOnly(true)                  \
   ->UseRealTime()
 
+std::string getTacoTensorPath();
+taco::TensorBase loadRandomTensor(std::string name, std::vector<int> dims, float sparsity, taco::Format format);
+
 template<typename T>
 taco::Tensor<T> castToType(std::string name, taco::Tensor<double> tensor) {
   taco::Tensor<T> result(name, tensor.getDimensions(), tensor.getFormat());
@@ -52,32 +55,6 @@ taco::Tensor<T> castToType(std::string name, taco::Tensor<double> tensor) {
   return result;
 }
 
-struct TacoTensorFileCache {
-  template<typename T>
-  taco::Tensor<double> read(std::string path, T format) {
-    if (this->lastPath == path) {
-      return lastLoaded;
-    }
-    // TODO (rohany): Not worrying about whether the format was the same as what was asked for.
-    this->lastLoaded = taco::read(path, format);
-    this->lastPath = path;
-    return this->lastLoaded;
-  }
-
-  template<typename T, typename U>
-  taco::Tensor<T> readIntoType(std::string name, std::string path, U format) {
-    auto tensor = this->read<U>(path, format);
-    return castToType<T>(name, tensor);
-  }
-
-  taco::Tensor<double> lastLoaded;
-  std::string lastPath;
-};
-
-std::string getTacoTensorPath();
-taco::TensorBase loadRandomTensor(std::string name, std::vector<int> dims, float sparsity, taco::Format format);
-
-// TODO (rohany): Cache the tensor shifts too.
 template<typename T, typename T2>
 taco::Tensor<T> shiftLastMode(std::string name, taco::Tensor<T2> original) {
   taco::Tensor<T> result(name, original.getDimensions(), original.getFormat());
