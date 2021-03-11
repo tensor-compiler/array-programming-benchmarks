@@ -10,6 +10,7 @@ benches_name := $(patsubst %.py,%,$(BENCHES))
 benches_name := $(subst /,_,$(benches_name))
 benches_name := $(subst *,_,$(benches_name))
 NUMPY_JSON ?= results/numpy/$(benches_name)benches_$(shell date +%Y_%m_%d_%H%M%S).json
+NUMPY_JSON := $(NUMPY_JSON)
 
 # Taco Specific Flags
 TACO_OUT = results/taco/$(benches_name)benches_$(shell date +%Y_%m_%d_%H%M%S).csv
@@ -24,12 +25,16 @@ export TACO_TENSOR_PATH = data/
 # command above.
 python-bench: results numpy/*.py
 	echo $(benches_name)
-	pytest $(IGNORE_FLAGS) --benchmark-json=$(NUMPY_JSON) $(BENCHFLAGS) $(BENCHES)@
+	-pytest $(IGNORE_FLAGS) --benchmark-json=$(NUMPY_JSON) $(BENCHFLAGS) $(BENCHES) 
 	make convert-csv
 	
 .PHONY: convert-csv
 convert-csv:
-	py.test-benchmark compare --csv=$(patsubst %.json,%.csv,$(NUMPY_JSON)) $(NUMPY_JSON)
+	python numpy/converter.py --json_name $(NUMPY_JSON)
+
+.PHONY: convert-csv-all
+convert-csv-all:
+	python numpy/converter.py --all
 
 taco-bench: taco/build/taco-bench
 ifeq ($(BENCHES),"")

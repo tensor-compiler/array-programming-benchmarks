@@ -93,15 +93,17 @@ FROSTTTensors = TensorCollectionFROSTT()
 @pytest.mark.parametrize("tensor", FROSTTTensors.getTensors(), ids=FROSTTTensors.getTensorNames())
 @pytest.mark.parametrize("ufunc", [numpy.logical_xor, numpy.ldexp, numpy.right_shift])
 def bench_pydata_frostt_ufunc_sparse(tacoBench, tensor, ufunc):
-    benchmark.extra_info['tensor_str'] = str(tensor)
-    benchmark.extra_info['ufunc_str'] = ufunc.__name__
+
     frTensor = tensor.load().astype('int64')
     shifter = PydataTensorShifter()
     other = shifter.shiftLastMode(frTensor).astype('int64')
     def bench():
         c = ufunc(frTensor, other)
         return c
-    tacoBench(bench)
+    extra_info = dict()
+    extra_info['tensor_str'] = str(tensor)
+    extra_info['ufunc_str'] = ufunc.__name__
+    tacoBench(bench, extra_info)
 
 # Run benchmarks against the SuiteSparse collection.
 SuiteSparseTensors = TensorCollectionSuiteSparse()
@@ -114,7 +116,10 @@ def bench_pydata_suitesparse_ufunc_sparse(tacoBench, tensor, ufunc):
     def bench():
         c = ufunc(ssTensor, other)
         return c
-    tacoBench(bench)
+    extra_info = dict()
+    extra_info['tensor_str'] = str(tensor)
+    extra_info['ufunc_str'] = ufunc.__name__
+    tacoBench(bench, extra_info)
 
 # TODO (rohany): scipy doesn't support these, I forgot. If that's the case,
 #  do we really need to compare against suitesparse?

@@ -1,0 +1,511 @@
+{
+    "machine_info": {
+        "node": "Olivias-MBP-2.local",
+        "processor": "i386",
+        "machine": "x86_64",
+        "python_compiler": "Clang 11.0.0 (clang-1100.0.33.17)",
+        "python_implementation": "CPython",
+        "python_implementation_version": "3.8.6",
+        "python_version": "3.8.6",
+        "python_build": [
+            "default",
+            "Oct  8 2020 14:07:53"
+        ],
+        "release": "18.7.0",
+        "system": "Darwin",
+        "cpu": {
+            "vendor_id": "unknown",
+            "hardware": "unknown",
+            "brand": "unknown"
+        }
+    },
+    "commit_info": {
+        "id": "3f5cff3ba8c1fedfacd2378f6f6eeff8d1564e13",
+        "time": "2021-03-10T12:22:11-08:00",
+        "author_time": "2021-03-10T12:22:11-08:00",
+        "dirty": true,
+        "project": "array-programming-benchmarks",
+        "branch": "main"
+    },
+    "benchmarks": [
+        {
+            "group": null,
+            "name": "bench_pydata_frostt_ufunc_sparse[logical_xor-nips]",
+            "fullname": "numpy/ufuncs.py::bench_pydata_frostt_ufunc_sparse[logical_xor-nips]",
+            "params": {
+                "ufunc": "UNSERIALIZABLE[<ufunc 'logical_xor'>]",
+                "tensor": "UNSERIALIZABLE[<util.FROSTTTensor object at 0x10b37e790>]"
+            },
+            "param": "logical_xor-nips",
+            "extra_info": {
+                "tensor_str": "nips",
+                "ufunc_str": "logical_xor"
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 1.822955725,
+                "max": 2.4525968160000033,
+                "mean": 2.0602508429999995,
+                "stddev": 0.19386880478446047,
+                "rounds": 10,
+                "median": 2.0453308819999982,
+                "iqr": 0.16968363700000566,
+                "q1": 1.9467769429999962,
+                "q3": 2.116460580000002,
+                "iqr_outliers": 1,
+                "stddev_outliers": 4,
+                "outliers": "4;1",
+                "ld15iqr": 1.822955725,
+                "hd15iqr": 2.4525968160000033,
+                "ops": 0.4853777895044406,
+                "total": 20.602508429999993,
+                "data": [
+                    2.4525968160000033,
+                    2.0615151009999977,
+                    2.029146662999999,
+                    1.9467769429999962,
+                    1.9849041019999945,
+                    2.286069008999995,
+                    2.116460580000002,
+                    2.074517507000003,
+                    1.822955725,
+                    1.8275659840000031
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": null,
+            "name": "bench_pydata_frostt_ufunc_sparse[logical_xor-uber-pickups]",
+            "fullname": "numpy/ufuncs.py::bench_pydata_frostt_ufunc_sparse[logical_xor-uber-pickups]",
+            "params": {
+                "ufunc": "UNSERIALIZABLE[<ufunc 'logical_xor'>]",
+                "tensor": "UNSERIALIZABLE[<util.FROSTTTensor object at 0x11651bf40>]"
+            },
+            "param": "logical_xor-uber-pickups",
+            "extra_info": {
+                "tensor_str": "uber-pickups",
+                "ufunc_str": "logical_xor"
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 2.317601517,
+                "max": 2.731015868,
+                "mean": 2.4882607672999995,
+                "stddev": 0.147473936691085,
+                "rounds": 10,
+                "median": 2.4504938194999966,
+                "iqr": 0.1928200049999873,
+                "q1": 2.3691089550000015,
+                "q3": 2.561928959999989,
+                "iqr_outliers": 0,
+                "stddev_outliers": 4,
+                "outliers": "4;0",
+                "ld15iqr": 2.317601517,
+                "hd15iqr": 2.731015868,
+                "ops": 0.40188713865592773,
+                "total": 24.882607672999995,
+                "data": [
+                    2.317601517,
+                    2.542051298000004,
+                    2.4698561860000012,
+                    2.431131452999992,
+                    2.3691089550000015,
+                    2.4024516449999993,
+                    2.340417983000009,
+                    2.561928959999989,
+                    2.731015868,
+                    2.7170438079999997
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": null,
+            "name": "bench_pydata_frostt_ufunc_sparse[logical_xor-chicago-crime]",
+            "fullname": "numpy/ufuncs.py::bench_pydata_frostt_ufunc_sparse[logical_xor-chicago-crime]",
+            "params": {
+                "ufunc": "UNSERIALIZABLE[<ufunc 'logical_xor'>]",
+                "tensor": "UNSERIALIZABLE[<util.FROSTTTensor object at 0x11651be20>]"
+            },
+            "param": "logical_xor-chicago-crime",
+            "extra_info": {
+                "tensor_str": "chicago-crime",
+                "ufunc_str": "logical_xor"
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 5.445818615000007,
+                "max": 12.92657782400002,
+                "mean": 7.553489786099999,
+                "stddev": 2.911133829439281,
+                "rounds": 10,
+                "median": 6.185826714000001,
+                "iqr": 2.8649710269999957,
+                "q1": 5.583289406999995,
+                "q3": 8.448260433999991,
+                "iqr_outliers": 1,
+                "stddev_outliers": 2,
+                "outliers": "2;1",
+                "ld15iqr": 5.445818615000007,
+                "hd15iqr": 12.92657782400002,
+                "ops": 0.13238913777843575,
+                "total": 75.53489786099999,
+                "data": [
+                    5.583289406999995,
+                    6.041946718999981,
+                    5.445818615000007,
+                    6.050176551000021,
+                    6.514814454999993,
+                    5.471875188000013,
+                    6.321476876999981,
+                    12.730661790999989,
+                    12.92657782400002,
+                    8.448260433999991
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": null,
+            "name": "bench_pydata_frostt_ufunc_sparse[ldexp-nips]",
+            "fullname": "numpy/ufuncs.py::bench_pydata_frostt_ufunc_sparse[ldexp-nips]",
+            "params": {
+                "ufunc": "UNSERIALIZABLE[<ufunc 'ldexp'>]",
+                "tensor": "UNSERIALIZABLE[<util.FROSTTTensor object at 0x10b37e790>]"
+            },
+            "param": "ldexp-nips",
+            "extra_info": {
+                "tensor_str": "nips",
+                "ufunc_str": "ldexp"
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 1.0387709159999758,
+                "max": 1.2385625539999978,
+                "mean": 1.1480890831999944,
+                "stddev": 0.06697271461753504,
+                "rounds": 10,
+                "median": 1.1329468484999836,
+                "iqr": 0.08622687099995119,
+                "q1": 1.1197424960000149,
+                "q3": 1.205969366999966,
+                "iqr_outliers": 0,
+                "stddev_outliers": 4,
+                "outliers": "4;0",
+                "ld15iqr": 1.0387709159999758,
+                "hd15iqr": 1.2385625539999978,
+                "ops": 0.8710125500129003,
+                "total": 11.480890831999943,
+                "data": [
+                    1.1302454510000075,
+                    1.2295803659999933,
+                    1.1893897670000229,
+                    1.205969366999966,
+                    1.2385625539999978,
+                    1.1356482459999597,
+                    1.1197424960000149,
+                    1.1275876980000135,
+                    1.0387709159999758,
+                    1.0653939709999918
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": null,
+            "name": "bench_pydata_frostt_ufunc_sparse[ldexp-uber-pickups]",
+            "fullname": "numpy/ufuncs.py::bench_pydata_frostt_ufunc_sparse[ldexp-uber-pickups]",
+            "params": {
+                "ufunc": "UNSERIALIZABLE[<ufunc 'ldexp'>]",
+                "tensor": "UNSERIALIZABLE[<util.FROSTTTensor object at 0x11651bf40>]"
+            },
+            "param": "ldexp-uber-pickups",
+            "extra_info": {
+                "tensor_str": "uber-pickups",
+                "ufunc_str": "ldexp"
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 1.5599719740000069,
+                "max": 2.5879317320000155,
+                "mean": 1.7007887874999994,
+                "stddev": 0.31251550398791017,
+                "rounds": 10,
+                "median": 1.6063927390000003,
+                "iqr": 0.04187554499998214,
+                "q1": 1.5909746959999893,
+                "q3": 1.6328502409999714,
+                "iqr_outliers": 1,
+                "stddev_outliers": 1,
+                "outliers": "1;1",
+                "ld15iqr": 1.5599719740000069,
+                "hd15iqr": 2.5879317320000155,
+                "ops": 0.5879624838483951,
+                "total": 17.007887874999994,
+                "data": [
+                    1.6074822269999913,
+                    1.5599719740000069,
+                    1.609637848000034,
+                    1.5909746959999893,
+                    1.634472125000002,
+                    1.6053032510000094,
+                    2.5879317320000155,
+                    1.5790253959999632,
+                    1.6002383850000115,
+                    1.6328502409999714
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": null,
+            "name": "bench_pydata_frostt_ufunc_sparse[ldexp-chicago-crime]",
+            "fullname": "numpy/ufuncs.py::bench_pydata_frostt_ufunc_sparse[ldexp-chicago-crime]",
+            "params": {
+                "ufunc": "UNSERIALIZABLE[<ufunc 'ldexp'>]",
+                "tensor": "UNSERIALIZABLE[<util.FROSTTTensor object at 0x11651be20>]"
+            },
+            "param": "ldexp-chicago-crime",
+            "extra_info": {
+                "tensor_str": "chicago-crime",
+                "ufunc_str": "ldexp"
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 2.7888812660000326,
+                "max": 3.8013393520000136,
+                "mean": 2.9617262340000026,
+                "stddev": 0.3089325679343463,
+                "rounds": 10,
+                "median": 2.8162597015000017,
+                "iqr": 0.1920973789999607,
+                "q1": 2.804531273000009,
+                "q3": 2.99662865199997,
+                "iqr_outliers": 1,
+                "stddev_outliers": 1,
+                "outliers": "1;1",
+                "ld15iqr": 2.7888812660000326,
+                "hd15iqr": 3.8013393520000136,
+                "ops": 0.33764092998205153,
+                "total": 29.617262340000025,
+                "data": [
+                    2.9710761829999797,
+                    3.0215025900000114,
+                    2.804531273000009,
+                    2.809344662000001,
+                    3.8013393520000136,
+                    2.8158012270000086,
+                    2.791438959000004,
+                    2.816718175999995,
+                    2.99662865199997,
+                    2.7888812660000326
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": null,
+            "name": "bench_pydata_frostt_ufunc_sparse[right_shift-nips]",
+            "fullname": "numpy/ufuncs.py::bench_pydata_frostt_ufunc_sparse[right_shift-nips]",
+            "params": {
+                "ufunc": "UNSERIALIZABLE[<ufunc 'right_shift'>]",
+                "tensor": "UNSERIALIZABLE[<util.FROSTTTensor object at 0x10b37e790>]"
+            },
+            "param": "right_shift-nips",
+            "extra_info": {
+                "tensor_str": "nips",
+                "ufunc_str": "right_shift"
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 0.9811653080000156,
+                "max": 1.0736368420000417,
+                "mean": 1.0053329320000046,
+                "stddev": 0.02772759025184652,
+                "rounds": 10,
+                "median": 0.9937236615000131,
+                "iqr": 0.025227635000021564,
+                "q1": 0.9877143429999933,
+                "q3": 1.0129419780000148,
+                "iqr_outliers": 1,
+                "stddev_outliers": 1,
+                "outliers": "1;1",
+                "ld15iqr": 0.9811653080000156,
+                "hd15iqr": 1.0736368420000417,
+                "ops": 0.9946953572988052,
+                "total": 10.053329320000046,
+                "data": [
+                    0.9951138800000194,
+                    1.0129419780000148,
+                    0.9850496770000063,
+                    0.9877143429999933,
+                    0.9811653080000156,
+                    1.0241106329999639,
+                    1.0736368420000417,
+                    0.9923334430000068,
+                    0.9901451929999894,
+                    1.0111180229999945
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": null,
+            "name": "bench_pydata_frostt_ufunc_sparse[right_shift-uber-pickups]",
+            "fullname": "numpy/ufuncs.py::bench_pydata_frostt_ufunc_sparse[right_shift-uber-pickups]",
+            "params": {
+                "ufunc": "UNSERIALIZABLE[<ufunc 'right_shift'>]",
+                "tensor": "UNSERIALIZABLE[<util.FROSTTTensor object at 0x11651bf40>]"
+            },
+            "param": "right_shift-uber-pickups",
+            "extra_info": {
+                "tensor_str": "uber-pickups",
+                "ufunc_str": "right_shift"
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 1.409366609000017,
+                "max": 1.5303829069999892,
+                "mean": 1.464751917299992,
+                "stddev": 0.03494558979210242,
+                "rounds": 10,
+                "median": 1.4620323535000068,
+                "iqr": 0.03385861999993267,
+                "q1": 1.4548961830000167,
+                "q3": 1.4887548029999493,
+                "iqr_outliers": 0,
+                "stddev_outliers": 3,
+                "outliers": "3;0",
+                "ld15iqr": 1.409366609000017,
+                "hd15iqr": 1.5303829069999892,
+                "ops": 0.6827094664899439,
+                "total": 14.647519172999921,
+                "data": [
+                    1.4696743939999806,
+                    1.4559511119999797,
+                    1.5303829069999892,
+                    1.4938150350000114,
+                    1.4206134229999634,
+                    1.4661046080000233,
+                    1.4579600989999904,
+                    1.409366609000017,
+                    1.4887548029999493,
+                    1.4548961830000167
+                ],
+                "iterations": 1
+            }
+        },
+        {
+            "group": null,
+            "name": "bench_pydata_frostt_ufunc_sparse[right_shift-chicago-crime]",
+            "fullname": "numpy/ufuncs.py::bench_pydata_frostt_ufunc_sparse[right_shift-chicago-crime]",
+            "params": {
+                "ufunc": "UNSERIALIZABLE[<ufunc 'right_shift'>]",
+                "tensor": "UNSERIALIZABLE[<util.FROSTTTensor object at 0x11651be20>]"
+            },
+            "param": "right_shift-chicago-crime",
+            "extra_info": {
+                "tensor_str": "chicago-crime",
+                "ufunc_str": "right_shift"
+            },
+            "options": {
+                "disable_gc": false,
+                "timer": "perf_counter",
+                "min_rounds": 5,
+                "max_time": 1.0,
+                "min_time": 5e-06,
+                "warmup": false
+            },
+            "stats": {
+                "min": 2.716730036999934,
+                "max": 3.0463827789999414,
+                "mean": 2.8108573993999926,
+                "stddev": 0.10493311128204733,
+                "rounds": 10,
+                "median": 2.7685638090000566,
+                "iqr": 0.09015235400011079,
+                "q1": 2.737604155999975,
+                "q3": 2.8277565100000857,
+                "iqr_outliers": 1,
+                "stddev_outliers": 2,
+                "outliers": "2;1",
+                "ld15iqr": 2.716730036999934,
+                "hd15iqr": 3.0463827789999414,
+                "ops": 0.35576333406791133,
+                "total": 28.108573993999926,
+                "data": [
+                    2.716730036999934,
+                    2.7537595070000407,
+                    3.0463827789999414,
+                    2.8245740309999974,
+                    2.9350721799999064,
+                    2.7295671759999323,
+                    2.7634836920000225,
+                    2.8277565100000857,
+                    2.737604155999975,
+                    2.7736439260000907
+                ],
+                "iterations": 1
+            }
+        }
+    ],
+    "datetime": "2021-03-11T02:20:41.030225",
+    "version": "3.2.3"
+}
