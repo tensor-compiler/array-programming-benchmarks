@@ -26,12 +26,8 @@ export TACO_TENSOR_PATH = data/
 python-bench: results numpy/*.py
 	echo $(benches_name)
 	-pytest $(IGNORE_FLAGS) --benchmark-json=$(NUMPY_JSON) $(BENCHFLAGS) $(BENCHES) 
-	make convert-csv
-	
-.PHONY: convert-csv
-convert-csv:
 	python numpy/converter.py --json_name $(NUMPY_JSON)
-
+	
 .PHONY: convert-csv-all
 convert-csv-all:
 	python numpy/converter.py --all
@@ -50,7 +46,7 @@ taco/build/taco-bench: results check-and-reinit-submodules taco/benchmark/google
 taco/benchmark/googletest: check-and-reinit-submodules
 	if [ ! -d "taco/benchmark/googletest" ] ; then git clone https://github.com/google/googletest taco/benchmark/googletest; fi
 
-.PHONY: csvs
+.PHONY: results
 results:
 	mkdir -p results/taco
 	mkdir -p results/numpy
