@@ -289,7 +289,6 @@ static void bench_suitesparse_ufunc(benchmark::State& state, Func op) {
 }
 
 static void applySuiteSparse(benchmark::internal::Benchmark* b) {
-  std::vector<int64_t> args(ssTensors.tensors.size());
   for (int i = 0; i < ssTensors.tensors.size(); i++) {
     b->Arg(i);
   }
