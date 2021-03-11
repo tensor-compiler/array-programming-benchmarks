@@ -50,7 +50,12 @@ taco::Tensor<T> shiftLastMode(std::string name, taco::Tensor<T2> original) {
       coords[i] = value.first[i];
     }
     int lastMode = original.getOrder() - 1;
-    coords[lastMode] = (coords[lastMode] + 1) % original.getDimension(lastMode);
+    // For order 2 tensors, always shift the last coordinate. Otherwise, shift only coordinates
+    // that have even last coordinates. This ensures that there is at least some overlap
+    // between the original tensor and its shifted counter part.
+    if (original.getOrder() <= 2 || (coords[lastMode] % 2 == 0)) {
+      coords[lastMode] = (coords[lastMode] + 1) % original.getDimension(lastMode);
+    }
     // TODO (rohany): Temporarily use a constant value here.
     result.insert(coords, T(2));
   }

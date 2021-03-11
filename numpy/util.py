@@ -171,7 +171,11 @@ class PydataTensorShifter:
             # resultValues[i] = data[i]
             # TODO (rohany): Temporarily use a constant as the value.
             resultValues[i] = 2
-            resultCoords[-1][i] = (resultCoords[-1][i] + 1) % tensor.shape[-1]
+            # For order 2 tensors, always shift the last coordinate. Otherwise, shift only coordinates
+            # that have even last coordinates. This ensures that there is at least some overlap
+            # between the original tensor and its shifted counter part.
+            if tensor.shape[-1] <= 0 or resultCoords[-1][i] % 2 == 0:
+                resultCoords[-1][i] = (resultCoords[-1][i] + 1) % tensor.shape[-1]
         return sparse.COO(resultCoords, resultValues, tensor.shape)
 
 # ScipyTensorShifter shifts all elements in the last mode
