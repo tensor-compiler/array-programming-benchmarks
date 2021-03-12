@@ -255,11 +255,13 @@ struct SuiteSparseTensors {
  SuiteSparseTensors() {
    auto ssTensorPath = getTacoTensorPath();
    ssTensorPath += "suitesparse/";
-   for (auto& entry : std::experimental::filesystem::directory_iterator(ssTensorPath)) {
-     std::string f(entry.path());
-     // Check that the filename ends with .mtx.
-     if (f.compare(f.size() - 4, 4, ".mtx") == 0) {
-       this->tensors.push_back(entry.path());
+   if (std::experimental::filesystem::exists(ssTensorPath)) {
+     for (auto& entry : std::experimental::filesystem::directory_iterator(ssTensorPath)) {
+       std::string f(entry.path());
+       // Check that the filename ends with .mtx.
+       if (f.compare(f.size() - 4, 4, ".mtx") == 0) {
+         this->tensors.push_back(entry.path());
+       }
      }
    }
  }
@@ -269,6 +271,10 @@ struct SuiteSparseTensors {
 SuiteSparseTensors ssTensors;
 
 static void bench_suitesparse_ufunc(benchmark::State& state, Func op) {
+  if (ssTensors.tensors.size() == 0) {
+    state.error_occurred();
+    return;
+  }
   int tensorIdx = state.range(0);
   auto tensorPath = ssTensors.tensors[tensorIdx];
   auto pathSplit = taco::util::split(tensorPath, "/");
