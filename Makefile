@@ -27,6 +27,10 @@ python-bench: results numpy/*.py
 	echo $(benches_name)
 	-pytest $(IGNORE_FLAGS) --benchmark-json=$(NUMPY_JSON) $(BENCHFLAGS) $(BENCHES) 
 	python numpy/converter.py --json_name $(NUMPY_JSON)
+
+# Separate target to run the python benchmarks with numpy-taco cross validation logic.
+validate-python-bench: numpy/*.py validation-path
+	pytest $(IGNORE_FLAGS) $(BENCHFLAGS) $(BENCHES) 
 	
 .PHONY: convert-csv-all
 convert-csv-all:
@@ -34,10 +38,24 @@ convert-csv-all:
 
 taco-bench: taco/build/taco-bench
 ifeq ($(BENCHES),"")
-	LD_LIBRARY_PATH=taco/build/lib/:$(LD_LIBRARY_PATH) taco/build/taco-bench $(BENCHFLAGS) --benchmark_out_format="csv" --benchmark_out="$(TACO_OUT)"
+	LD_LIBRARY_PATH=taco/build/lib/:$(LD_LIBRARY_PATH) taco/build/taco-bench $(BENCHFLAGS) --benchmark_out_format="csv" --benchmark_out="$(TACO_OUT)" --benchmark_repetitions=10
 
 else
-	LD_LIBRARY_PATH=taco/build/lib/:$(LD_LIBRARY_PATH) taco/build/taco-bench $(BENCHFLAGS) --benchmark_filter="$(BENCHES)" --benchmark_out_format="csv" --benchmark_out="$(TACO_OUT)"
+	LD_LIBRARY_PATH=taco/build/lib/:$(LD_LIBRARY_PATH) taco/build/taco-bench $(BENCHFLAGS) --benchmark_filter="$(BENCHES)" --benchmark_out_format="csv" --benchmark_out="$(TACO_OUT)" --benchmark_repetitions=10
+endif
+
+# Separate target to run the TACO benchmarks with numpy-taco cross validation logic.
+validate-taco-bench: taco/build/taco-bench validation-path
+ifeq ($(BENCHES),"")
+	LD_LIBRARY_PATH=taco/build/lib/:$(LD_LIBRARY_PATH) taco/build/taco-bench $(BENCHFLAGS) --benchmark_repetitions=1
+else
+	LD_LIBRARY_PATH=taco/build/lib/:$(LD_LIBRARY_PATH) taco/build/taco-bench $(BENCHFLAGS) --benchmark_filter="$(BENCHES)" --benchmark_repetitions=1
+endif
+
+.PHONY: validation-path
+validation-path:
+ifeq ($(VALIDATION_OUTPUT_PATH),)
+	$(error VALIDATION_OUTPUT_PATH is undefined)
 endif
 
 taco/build/taco-bench: results check-and-reinit-submodules taco/benchmark/googletest

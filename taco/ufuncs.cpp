@@ -184,14 +184,18 @@ struct UfuncInputCache {
 };
 UfuncInputCache inputCache;
 
+std::string ufuncBenchKey(std::string tensorName, std::string funcName) {
+  return tensorName + "-" + funcName + "-taco";
+}
+
 static void bench_frostt_ufunc(benchmark::State& state, std::string tnsPath, Func op) {
-  auto path = getTacoTensorPath();
-  auto frosttTensorPath = path;
-  if (frosttTensorPath[frosttTensorPath.size() - 1] != '/') {
-    frosttTensorPath += "/";
-  }
+  auto frosttTensorPath = getTacoTensorPath();
   frosttTensorPath += "FROSTT/";
   frosttTensorPath += tnsPath;
+
+  auto pathSplit = taco::util::split(tnsPath, "/");
+  auto filename = pathSplit[pathSplit.size() - 1];
+  auto tensorName = taco::util::split(filename, ".")[0];
 
   // TODO (rohany): What format do we want to do here?
   Tensor<int64_t> frosttTensor, other;
@@ -220,12 +224,19 @@ static void bench_frostt_ufunc(benchmark::State& state, std::string tnsPath, Fun
     state.ResumeTiming();
 
     result.compute();
+
+    state.PauseTiming();
+    if (auto validationPath = getValidationOutputPath(); validationPath != "") {
+      auto key = ufuncBenchKey(tensorName, op.getName());
+      auto outpath = validationPath + key + ".tns";
+      taco::write(outpath, result.removeExplicitZeros(result.getFormat()));
+    }
   }
 }
 
 Func ldExp("ldexp", Ldexp(), leftIncAlgebra());
-Func rightShift("rightShift", RightShift(), leftIncAlgebra());
-Func xorOp("xor", GeneralAdd(), xorAlgebra());
+Func rightShift("right_shift", RightShift(), leftIncAlgebra());
+Func xorOp("logical_xor", GeneralAdd(), xorAlgebra());
 
 #define FOREACH_FROSTT_TENSOR(__func__) \
   __func__(nips, "nips.tns") \
@@ -234,19 +245,15 @@ Func xorOp("xor", GeneralAdd(), xorAlgebra());
   __func__(lbnl_network, "lbnl-network.tns")
 
 #define DECLARE_FROSTT_UFUNC_BENCH(name, path) \
-   TACO_BENCH_ARGS(bench_frostt_ufunc, name/xor, path, xorOp); \
-   TACO_BENCH_ARGS(bench_frostt_ufunc, name/ldExp, path, ldExp); \
-   TACO_BENCH_ARGS(bench_frostt_ufunc, name/rightShift, path, rightShift); \
+  TACO_BENCH_ARGS(bench_frostt_ufunc, name/xor, path, xorOp); \
+  TACO_BENCH_ARGS(bench_frostt_ufunc, name/ldExp, path, ldExp); \
+  TACO_BENCH_ARGS(bench_frostt_ufunc, name/rightShift, path, rightShift); \
 
 FOREACH_FROSTT_TENSOR(DECLARE_FROSTT_UFUNC_BENCH)
 
 struct SuiteSparseTensors {
  SuiteSparseTensors() {
-   auto path = getTacoTensorPath();
-   auto ssTensorPath = path;
-   if (ssTensorPath[ssTensorPath.size() - 1] != '/') {
-     ssTensorPath += "/";
-   }
+   auto ssTensorPath = getTacoTensorPath();
    ssTensorPath += "suitesparse/";
    for (auto& entry : std::experimental::filesystem::directory_iterator(ssTensorPath)) {
      std::string f(entry.path());
@@ -285,6 +292,13 @@ static void bench_suitesparse_ufunc(benchmark::State& state, Func op) {
     state.ResumeTiming();
 
     result.compute();
+
+    state.PauseTiming();
+    if (auto validationPath = getValidationOutputPath(); validationPath != "") {
+      auto key = ufuncBenchKey(tensorName, op.getName());
+      auto outpath = validationPath + key + ".tns";
+      taco::write(outpath, result.removeExplicitZeros(result.getFormat()));
+    }
   }
 }
 
