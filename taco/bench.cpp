@@ -6,13 +6,36 @@
 #include "taco/tensor.h"
 #include "taco/util/strings.h"
 
-std::string getTacoTensorPath() {
-  auto path = std::getenv("TACO_TENSOR_PATH");
+std::string getEnvVar(std::string varname) {
+  auto path = std::getenv(varname.c_str());
   if (path == nullptr) {
-    std::cout << "TACO_TENSOR_PATH is unset" << std::endl;
-    assert(false);
+    return "";
   }
   return std::string(path);
+}
+
+std::string getTacoTensorPath() {
+  std::string result = getEnvVar("TACO_TENSOR_PATH");
+  if (result == "") {
+    assert(false && "TACO_TENSOR_PATH is unset");
+  }
+  return cleanPath(result);
+}
+
+std::string getValidationOutputPath() {
+  auto result = getEnvVar("VALIDATION_OUTPUT_PATH");
+  if (result != "") {
+    result = cleanPath(result);
+  }
+  return result;
+}
+
+std::string cleanPath(std::string path) {
+  std::string result(path);
+  if (result[result.size() - 1] != '/') {
+    result += "/";
+  }
+  return result;
 }
 
 std::string constructRandomTensorKey(std::vector<int> dims, float sparsity) {

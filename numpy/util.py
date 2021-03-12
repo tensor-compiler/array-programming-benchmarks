@@ -7,6 +7,8 @@ import glob
 # Get the path to the directory holding random tensors. Error out
 # if this isn't set.
 TENSOR_PATH = os.environ['TACO_TENSOR_PATH']
+# Get the validation path, if it exists.
+VALIDATION_OUTPUT_PATH = os.getenv('VALIDATION_OUTPUT_PATH', None)
 
 # TnsFileLoader loads a tensor stored in .tns format.
 class TnsFileLoader:
@@ -76,6 +78,14 @@ class PydataSparseTensorLoader:
         dims, coords, values = self.loader.load(path)
         return sparse.COO(coords, values, tuple(dims))
 
+# PydataSparseTensorDumper dumps a sparse tensor to a the desired file.
+class PydataSparseTensorDumper:
+    def __init__(self):
+        self.dumper = TnsFileDumper()
+
+    def dump(self, tensor, path):
+        self.dumper.dump_dict_to_file(tensor.shape, sparse.DOK(tensor).data, path)
+
 # construct_random_tensor_key constructs a unique key that represents
 # a random tensor parameterized by the chosen shape and sparsity.
 # The key itself is formatted by the dimensions, followed by the
@@ -132,6 +142,7 @@ class RandomScipySparseTensorLoader:
 class FROSTTTensor:
     def __init__(self, path):
         self.path = path
+        self.__name__ = self.__str__()
 
     def __str__(self):
         f = os.path.split(self.path)[1]
@@ -176,7 +187,7 @@ class PydataTensorShifter:
             # For order 2 tensors, always shift the last coordinate. Otherwise, shift only coordinates
             # that have even last coordinates. This ensures that there is at least some overlap
             # between the original tensor and its shifted counter part.
-            if tensor.shape[-1] <= 0 or resultCoords[-1][i] % 2 == 0:
+            if len(tensor.shape) <= 2 or resultCoords[-1][i] % 2 == 0:
                 resultCoords[-1][i] = (resultCoords[-1][i] + 1) % tensor.shape[-1]
         return sparse.COO(resultCoords, resultValues, tensor.shape)
 
@@ -231,6 +242,7 @@ class PydataMatrixMarketTensorLoader:
 class SuiteSparseTensor:
     def __init__(self, path):
         self.path = path
+        self.__name__ = self.__str__()
 
     def __str__(self):
         f = os.path.split(self.path)[1]

@@ -25,7 +25,6 @@
 #define TACO_BENCH_ARG(bench, name, arg)  \
   BENCHMARK_CAPTURE(bench, name, arg)     \
   ->Unit(benchmark::kMicrosecond)         \
-  ->Repetitions(10)                       \
   ->Iterations(1)                         \
   ->ReportAggregatesOnly(true)            \
   ->UseRealTime()
@@ -33,12 +32,14 @@
 #define TACO_BENCH_ARGS(bench, name, ...)       \
   BENCHMARK_CAPTURE(bench, name, __VA_ARGS__)   \
   ->Unit(benchmark::kMicrosecond)               \
-  ->Repetitions(10)                             \
   ->Iterations(1)                               \
   ->ReportAggregatesOnly(true)                  \
   ->UseRealTime()
 
 std::string getTacoTensorPath();
+std::string getValidationOutputPath();
+// cleanPath ensures that the input path ends with "/".
+std::string cleanPath(std::string path);
 taco::TensorBase loadRandomTensor(std::string name, std::vector<int> dims, float sparsity, taco::Format format);
 
 template<typename T>
@@ -46,10 +47,12 @@ taco::Tensor<T> castToType(std::string name, taco::Tensor<double> tensor) {
   taco::Tensor<T> result(name, tensor.getDimensions(), tensor.getFormat());
   std::vector<int> coords(tensor.getOrder());
   for (auto& value : taco::iterate<double>(tensor)) {
-    for (int i = 0; i < tensor.getOrder(); i++) {
-      coords[i] = value.first[i];
+    if (static_cast<T>(value.second) != T(0)) {
+      for (int i = 0; i < tensor.getOrder(); i++) {
+        coords[i] = value.first[i];
+      }
+      result.insert(coords, static_cast<T>(value.second));
     }
-    result.insert(coords, T(value.second));
   }
   result.pack();
   return result;
