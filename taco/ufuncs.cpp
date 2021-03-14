@@ -206,6 +206,11 @@ static void bench_frostt_ufunc(benchmark::State& state, std::string tnsPath, Fun
     Tensor<int64_t> result("result", frosttTensor.getDimensions(), frosttTensor.getFormat());
     result.setAssembleWhileCompute(true);
     switch (frosttTensor.getOrder()) {
+      case 3: {
+        IndexVar i, j, k;
+        result(i, j, k) = op(frosttTensor(i, j, k), other(i, j, k));
+        break;
+      }
       case 4: {
         IndexVar i, j, k, l;
         result(i, j, k, l) = op(frosttTensor(i, j, k, l), other(i, j, k, l));
@@ -242,7 +247,19 @@ Func xorOp("logical_xor", GeneralAdd(), xorAlgebra());
   __func__(nips, "nips.tns") \
   __func__(uber_pickups, "uber-pickups.tns") \
   __func__(chicago_crime, "chicago-crime.tns") \
-  __func__(lbnl_network, "lbnl-network.tns")
+  __func__(lbnl_network, "lbnl-network.tns") \
+  __func__(enron, "enron.tns") \
+  __func__(nell-2, "nell-2.tns") \
+  __func__(vast, "vast.tns")
+
+  // Other FROSTT tensors that may or may not be too large to load.
+  // __func__(delicious, "delicious.tns") \
+  // __func__(flickr, "flickr.tns") \
+  // __func__(nell-1, "nell-1.tns") \
+  // __func__(patents, "patents.tns") \
+  // __func__(reddit, "reddit.tns") \
+  // __func__(amazon-reviews, "amazon-reviews.tns") \
+ 
 
 #define DECLARE_FROSTT_UFUNC_BENCH(name, path) \
   TACO_BENCH_ARGS(bench_frostt_ufunc, name/xor, path, xorOp); \
