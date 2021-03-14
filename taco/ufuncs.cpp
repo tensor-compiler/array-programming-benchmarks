@@ -169,8 +169,10 @@ struct UfuncInputCache {
     }
 
     // Otherwise, we missed the cache. Load in the target tensor and process it.
-    this->lastPath = path;
     this->lastLoaded = taco::read(path, format);
+    // We assign lastPath after lastLoaded so that if taco::read throws an exception
+    // then lastPath isn't updated to the new path.
+    this->lastPath = path;
     this->inputTensor = castToType<int64_t>("A", this->lastLoaded);
     this->otherTensor = shiftLastMode<int64_t, int64_t>("B", this->inputTensor);
     return std::make_pair(this->inputTensor, this->otherTensor);
@@ -288,6 +290,9 @@ struct SuiteSparseTensors {
 SuiteSparseTensors ssTensors;
 
 static void bench_suitesparse_ufunc(benchmark::State& state, Func op) {
+  // Counters must be present in every run to get reported to the CSV.
+  state.counters["dimx"] = 0;
+  state.counters["dimy"] = 0;
   if (ssTensors.tensors.size() == 0) {
     state.error_occurred();
     return;
@@ -300,7 +305,14 @@ static void bench_suitesparse_ufunc(benchmark::State& state, Func op) {
   state.SetLabel(tensorName);
 
   taco::Tensor<int64_t> ssTensor, other;
-  std::tie(ssTensor, other) = inputCache.getUfuncInput(tensorPath, CSR);
+  try {
+    std::tie(ssTensor, other) = inputCache.getUfuncInput(tensorPath, CSR);
+  } catch (TacoException& e) {
+    // Counters don't show up in the generated CSV if we used SkipWithError, so
+    // just add in the label that this run is skipped.	  
+    state.SetLabel(tensorName+"-SKIPPED-FAILED-READ");
+    return;
+  }
 
   state.counters["dimx"] = ssTensor.getDimension(0);
   state.counters["dimy"] = ssTensor.getDimension(1);
