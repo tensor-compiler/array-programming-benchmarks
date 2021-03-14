@@ -1,4 +1,6 @@
 #!/bin/bash
+#SBATCH -N 1
+#SBATCH -t 360
 
 cd data/suitesparse/
 

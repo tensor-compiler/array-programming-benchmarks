@@ -1,4 +1,6 @@
 #!/bin/bash
+#SBATCH -N 1
+#SBATCH -t 360
 
 mkdir -p data/suitesparse/
 cd data/suitesparse/
