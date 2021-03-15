@@ -157,6 +157,8 @@ class TensorCollectionFROSTT:
         data = os.path.join(TENSOR_PATH, "FROSTT")
         frostttensors = glob.glob(os.path.join(data, "*.tns"))
         self.tensors = [FROSTTTensor(t) for t in frostttensors]
+        allowlist = ["nips", "uber-pickups", "chicago-crime", "lbnl-network", "enron", "nell-2", "vast"]
+        self.tensors = [t for t in self.tensors if str(t) in allowlist]
 
     def getTensors(self):
         return self.tensors
