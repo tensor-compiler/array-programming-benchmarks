@@ -247,9 +247,9 @@ Func xorOp("logical_xor", GeneralAdd(), xorAlgebra());
 
 #define FOREACH_FROSTT_TENSOR(__func__) \
   __func__(nips, "nips.tns") \
-  __func__(uber_pickups, "uber-pickups.tns") \
-  __func__(chicago_crime, "chicago-crime.tns") \
-  __func__(lbnl_network, "lbnl-network.tns") \
+  __func__(uber-pickups, "uber-pickups.tns") \
+  __func__(chicago-crime, "chicago-crime.tns") \
+  __func__(lbnl-network, "lbnl-network.tns") \
   __func__(enron, "enron.tns") \
   __func__(nell-2, "nell-2.tns") \
   __func__(vast, "vast.tns")
