@@ -6,7 +6,6 @@ def tacoBench(benchmark):
         if extra_info is not None:
             for k, v in extra_info.items():
                 benchmark.extra_info[k] = v
-            print(benchmark)
         benchmark.pedantic(func, rounds=10, iterations=1, warmup_rounds=1)
     return f
 
