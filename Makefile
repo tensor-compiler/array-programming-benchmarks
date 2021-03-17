@@ -15,11 +15,23 @@ NUMPY_JSON := $(NUMPY_JSON)
 # Taco Specific Flags
 TACO_OUT = results/taco/$(benches_name)benches_$(shell date +%Y_%m_%d_%H%M%S).csv
 
+# Set GRAPHBLAS=ON if compiling GraphBLAS benchmarks.
+ifeq ($(GRAPHBLAS),)
 GRAPHBLAS := "OFF"
+endif
+# Set OPENMP=ON if compiling TACO with OpenMP support.
+ifeq ($(OPENMP),)
 OPENMP := "OFF"
+endif
 # Set LANKA=ON if compiling on the MIT Lanka cluster.
 ifeq ($(LANKA),)
 LANKA := "OFF"
+endif
+
+ifeq ("$(LANKA)","ON")
+CMD := OMP_PROC_BIND=true LD_LIBRARY_PATH=taco/build/lib/:$(LD_LIBRARY_PATH) numactl -C 0,2,4,6,8,10,24,26,28,30,32,34 -m 0 taco/build/taco-bench $(BENCHFLAGS)
+else
+CMD := LD_LIBRARY_PATH=taco/build/lib/:$(LD_LIBRARY_PATH) taco/build/taco-bench $(BENCHFLAGS)
 endif
 
 export TACO_TENSOR_PATH = data/
@@ -42,18 +54,17 @@ convert-csv-all:
 
 taco-bench: taco/build/taco-bench
 ifeq ($(BENCHES),"")
-	LD_LIBRARY_PATH=taco/build/lib/:$(LD_LIBRARY_PATH) taco/build/taco-bench $(BENCHFLAGS) --benchmark_out_format="csv" --benchmark_out="$(TACO_OUT)" --benchmark_repetitions=10 --benchmark_counters_tabular=true
-
+	$(CMD) --benchmark_out_format="csv" --benchmark_out="$(TACO_OUT)" --benchmark_repetitions=10 --benchmark_counters_tabular=true
 else
-	LD_LIBRARY_PATH=taco/build/lib/:$(LD_LIBRARY_PATH) taco/build/taco-bench $(BENCHFLAGS) --benchmark_filter="$(BENCHES)" --benchmark_out_format="csv" --benchmark_out="$(TACO_OUT)" --benchmark_repetitions=10 --benchmark_counters_tabular=true
+	$(CMD) --benchmark_filter="$(BENCHES)" --benchmark_out_format="csv" --benchmark_out="$(TACO_OUT)" --benchmark_repetitions=10 --benchmark_counters_tabular=true
 endif
 
 # Separate target to run the TACO benchmarks with numpy-taco cross validation logic.
 validate-taco-bench: taco/build/taco-bench validation-path
 ifeq ($(BENCHES),"")
-	LD_LIBRARY_PATH=taco/build/lib/:$(LD_LIBRARY_PATH) taco/build/taco-bench $(BENCHFLAGS) --benchmark_repetitions=1
+	$(CMD) --benchmark_repetitions=1
 else
-	LD_LIBRARY_PATH=taco/build/lib/:$(LD_LIBRARY_PATH) taco/build/taco-bench $(BENCHFLAGS) --benchmark_filter="$(BENCHES)" --benchmark_repetitions=1
+	$(CMD) --benchmark_filter="$(BENCHES)" --benchmark_repetitions=1
 endif
 
 .PHONY: validation-path

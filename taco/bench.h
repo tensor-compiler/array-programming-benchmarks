@@ -17,6 +17,14 @@
   ->ReportAggregatesOnly(true)    \
   ->UseRealTime()
 
+#define GRAPHBLAS_BENCH(bench,times)   \
+  BENCHMARK(bench)                \
+  ->Unit(benchmark::kMillisecond) \
+  ->Repetitions(times)               \
+  ->Iterations(1)                 \
+  ->ReportAggregatesOnly(false)    \
+  ->UseRealTime()
+
 // TACO_BENCH_ARG is similar to TACO_BENCH but allows for passing
 // of an arbitrarily typed argument to the benchmark function.
 // TODO (rohany): Make this take in only 1 argument.

@@ -20,6 +20,9 @@ include_directories(taco taco/include benchmark/include suitesparse/Include)
 file(GLOB TEST_SOURCES *.cpp *.h)
 
 set(CMAKE_CXX_FLAGS "${C_CXX_FLAGS} -std=c++14")
+if (GRAPHBLAS)
+  set(CMAKE_CXX_FLAGS "${C_CXX_FLAGS} -fpermissive")
+endif(GRAPHBLAS)
 
 add_executable(taco-bench ${TEST_SOURCES} bench.h)
 target_link_libraries(taco-bench benchmark::benchmark)
