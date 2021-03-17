@@ -11,18 +11,21 @@ from util import RandomScipySparseTensorLoader, RandomPydataSparseTensorLoader
 # * Almost the entire tensor (I'm unsure what the point of this comparison is)
 # * No windowing (TACO should use a window so we can measure the overhead).
 # These options map to the corresponding config values:
-sizeConfigs = ["constant", "constant-fraction", "almost-whole", "no-windowing"]
+sizeConfigs = ["Constant", "ConstantFraction", "AlmostWhole", "Whole", "NoWindowing"]
 
 def sliceTensor(tensor, dim, config):
-    if config == "constant":
+    return tensor
+    if config == "Constant":
         return tensor[250:750, 250:750]
-    elif config == "constant-fraction":
+    elif config == "ConstantFraction":
         size = dim//4
         start = dim//4
         return tensor[start:(start+size), start:(start+size)]
-    elif config == "almost-whole":
+    elif config == "AlmostWhole":
         return tensor[1:(dim-1), 1:(dim-1)]
-    elif config == "no-windowing":
+    elif config == "Whole":
+        return tensor[0:dim, 0:dim]
+    elif config == "NoWindowing":
         return tensor
     else:
         assert(False)
@@ -69,7 +72,7 @@ def bench_add_sparse_strided_window(tacoBench, dim, format, strideWidth):
 @pytest.mark.parametrize("format", ['csr', 'csc'])
 def bench_add_sparse_index_set(tacoBench, dim, format):
     indexes = [i * 2 for i in range(0, dim//2)]
-    loader = ScipySparseTensorLoader(format)
+    loader = RandomScipySparseTensorLoader(format)
     matrix = loader.random((dim, dim), 0.01)
     def bench():
         x = matrix[:, indexes] 
