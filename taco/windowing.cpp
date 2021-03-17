@@ -18,7 +18,7 @@ enum WindowConfig {
   ConstantFraction,
   AlmostWhole,
   Whole,
-  NoWindow,
+  NoWindowing,
 };
 
 #define FOREACH_WINDOW_CONFIG(__func__) \
@@ -26,7 +26,7 @@ enum WindowConfig {
   __func__(ConstantFraction, ConstantFraction) \
   __func__(AlmostWhole, AlmostWhole) \
   __func__(Whole, Whole) \
-  __func__(NoWindow, NoWindow)
+  __func__(NoWindowing, NoWindowing)
 
 Tensor<double> windowedTensorOp(Tensor<double> input, int dim, WindowConfig config) {
   IndexVar i, j;
@@ -53,7 +53,7 @@ Tensor<double> windowedTensorOp(Tensor<double> input, int dim, WindowConfig conf
       result(i, j) = input(i(0, dim), j(0, dim)) + input(i(0, dim), j(0, dim));
       return result;
     }
-    case NoWindow: {
+    case NoWindowing: {
       Tensor<double> result("B", {dim, dim}, input.getFormat());
       result(i, j) = input(i, j) + input(i, j);
       return result;
