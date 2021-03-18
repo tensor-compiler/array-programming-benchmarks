@@ -5,9 +5,6 @@ import pytest
 import os
 from util import TensorCollectionFROSTT, PydataTensorShifter, TensorCollectionSuiteSparse, ScipyTensorShifter, PydataMatrixMarketTensorLoader, ScipyMatrixMarketTensorLoader, VALIDATION_OUTPUT_PATH, PydataSparseTensorDumper, SuiteSparseTensor, safeCastPydataTensorToInts
 
-import cProfile
-import flamegraph
-
 # TODO (rohany): Ask hameer about this. pydata/sparse isn't happy when
 #  given this ufunc to evaluate.
 def myfunc(x, y):
