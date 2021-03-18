@@ -198,6 +198,7 @@ static void bench_frostt_ufunc(benchmark::State& state, std::string tnsPath, Fun
   auto pathSplit = taco::util::split(tnsPath, "/");
   auto filename = pathSplit[pathSplit.size() - 1];
   auto tensorName = taco::util::split(filename, ".")[0];
+  state.SetLabel(tensorName);
 
   // TODO (rohany): What format do we want to do here?
   Tensor<int64_t> frosttTensor, other;
@@ -249,7 +250,6 @@ Func xorOp("logical_xor", GeneralAdd(), xorAlgebra());
   __func__(nips, "nips.tns") \
   __func__(uber-pickups, "uber-pickups.tns") \
   __func__(chicago-crime, "chicago-crime.tns") \
-  __func__(lbnl-network, "lbnl-network.tns") \
   __func__(enron, "enron.tns") \
   __func__(nell-2, "nell-2.tns") \
   __func__(vast, "vast.tns")
@@ -261,6 +261,8 @@ Func xorOp("logical_xor", GeneralAdd(), xorAlgebra());
   // __func__(patents, "patents.tns") \
   // __func__(reddit, "reddit.tns") \
   // __func__(amazon-reviews, "amazon-reviews.tns") \
+  // lbnl-network is fine, but python can't load it.
+  // __func__(lbnl-network, "lbnl-network.tns") \
  
 
 #define DECLARE_FROSTT_UFUNC_BENCH(name, path) \
