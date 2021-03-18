@@ -13,7 +13,9 @@ NUMPY_JSON ?= results/numpy/$(benches_name)benches_$(shell date +%Y_%m_%d_%H%M%S
 NUMPY_JSON := $(NUMPY_JSON)
 
 # Taco Specific Flags
-TACO_OUT = results/taco/$(benches_name)benches_$(shell date +%Y_%m_%d_%H%M%S).csv
+ifeq ($(TACO_OUT),)
+TACO_OUT := results/taco/$(benches_name)benches_$(shell date +%Y_%m_%d_%H%M%S).csv
+endif
 
 # Set GRAPHBLAS=ON if compiling GraphBLAS benchmarks.
 ifeq ($(GRAPHBLAS),)
