@@ -3,7 +3,10 @@ from scipy.sparse import random, csr_matrix
 import sparse
 import pytest
 import os
-from util import TensorCollectionFROSTT, PydataTensorShifter, TensorCollectionSuiteSparse, ScipyTensorShifter, PydataMatrixMarketTensorLoader, ScipyMatrixMarketTensorLoader, VALIDATION_OUTPUT_PATH, PydataSparseTensorDumper
+from util import TensorCollectionFROSTT, PydataTensorShifter, TensorCollectionSuiteSparse, ScipyTensorShifter, PydataMatrixMarketTensorLoader, ScipyMatrixMarketTensorLoader, VALIDATION_OUTPUT_PATH, PydataSparseTensorDumper, SuiteSparseTensor, safeCastPydataTensorToInts
+
+import cProfile
+import flamegraph
 
 # TODO (rohany): Ask hameer about this. pydata/sparse isn't happy when
 #  given this ufunc to evaluate.
@@ -97,7 +100,7 @@ FROSTTTensors = TensorCollectionFROSTT()
 @pytest.mark.parametrize("tensor", FROSTTTensors.getTensors())
 @pytest.mark.parametrize("ufunc", [numpy.logical_xor, numpy.ldexp, numpy.right_shift])
 def bench_pydata_frostt_ufunc_sparse(tacoBench, tensor, ufunc):
-    frTensor = tensor.load().astype('int64')
+    frTensor = safeCastPydataTensorToInts(tensor.load())
     shifter = PydataTensorShifter()
     other = shifter.shiftLastMode(frTensor)
     def bench():
@@ -115,11 +118,10 @@ def bench_pydata_frostt_ufunc_sparse(tacoBench, tensor, ufunc):
         tacoBench(bench, extra_info)
 
 # Run benchmarks against the SuiteSparse collection.
-SuiteSparseTensors = TensorCollectionSuiteSparse()
-@pytest.mark.parametrize("tensor", SuiteSparseTensors.getTensors())
 @pytest.mark.parametrize("ufunc", [numpy.logical_xor, numpy.ldexp, numpy.right_shift])
-def bench_pydata_suitesparse_ufunc_sparse(tacoBench, tensor, ufunc):
-    ssTensor = tensor.load(PydataMatrixMarketTensorLoader()).astype('int64')
+def bench_pydata_suitesparse_ufunc_sparse(tacoBench, ufunc):
+    tensor = SuiteSparseTensor(os.getenv('SUITESPARSE_TENSOR_PATH'))
+    ssTensor = safeCastPydataTensorToInts(tensor.load(PydataMatrixMarketTensorLoader()))
     shifter = PydataTensorShifter()
     other = shifter.shiftLastMode(ssTensor)
     def bench():
@@ -128,6 +130,7 @@ def bench_pydata_suitesparse_ufunc_sparse(tacoBench, tensor, ufunc):
     extra_info = dict()
     extra_info['tensor_str'] = str(tensor)
     extra_info['ufunc_str'] = ufunc.__name__
+    extra_info['nnz'] = ssTensor.nnz
     if VALIDATION_OUTPUT_PATH is not None:
         result = bench()
         key = ufunc_bench_key(str(tensor), ufunc.__name__)
@@ -135,16 +138,3 @@ def bench_pydata_suitesparse_ufunc_sparse(tacoBench, tensor, ufunc):
         PydataSparseTensorDumper().dump(result, outpath)
     else:
         tacoBench(bench, extra_info)
-
-@pytest.mark.skip(reason="scipy doesn't support this actually")
-@pytest.mark.parametrize("tensor", SuiteSparseTensors.getTensors(), ids=SuiteSparseTensors.getTensorNames())
-@pytest.mark.parametrize("ufunc", [numpy.logical_xor, numpy.ldexp, numpy.right_shift])
-@pytest.mark.parametrize("format", ["csr", "csc"])
-def bench_scipy_suitesparse_ufunc_sparse(tacoBench, tensor, ufunc, format):
-    ssTensor = tensor.load(ScipyMatrixMarketTensorLoader(format)).astype('int64')
-    shifter = ScipyTensorShifter(format)
-    other = shifter.shiftLastMode(ssTensor).astype('int64')
-    def bench():
-        c = ufunc(ssTensor, other)
-        return c
-    tacoBench(bench)

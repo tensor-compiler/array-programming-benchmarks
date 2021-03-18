@@ -3,6 +3,7 @@ import scipy.io
 import sparse
 import os
 import glob
+import numpy
 
 # Get the path to the directory holding random tensors. Error out
 # if this isn't set.
@@ -157,7 +158,7 @@ class TensorCollectionFROSTT:
         data = os.path.join(TENSOR_PATH, "FROSTT")
         frostttensors = glob.glob(os.path.join(data, "*.tns"))
         self.tensors = [FROSTTTensor(t) for t in frostttensors]
-        allowlist = ["nips", "uber-pickups", "chicago-crime", "lbnl-network", "enron", "nell-2", "vast"]
+        allowlist = ["nips", "uber-pickups", "chicago-crime", "enron", "nell-2", "vast"]
         self.tensors = [t for t in self.tensors if str(t) in allowlist]
 
     def getTensors(self):
@@ -267,3 +268,16 @@ class TensorCollectionSuiteSparse:
         return [str(tensor) for tensor in self.getTensors()]
     def getTensorsAndNames(self):
         return [(str(tensor), tensor) for tensor in self.getTensors()]
+
+# safeCastPydataTensorToInts casts a floating point tensor to integers
+# in a way that preserves the sparsity pattern.
+def safeCastPydataTensorToInts(tensor):
+    data = numpy.zeros(len(tensor.data), dtype='int64')
+    for i in range(len(data)):
+        # If the cast would turn a value into 0, instead write a 1. This preserves
+        # the sparsity pattern of the data.
+        if int(tensor.data[i]) == 0:
+            data[i] = 1
+        else:
+            data[i] = int(tensor.data[i])
+    return sparse.COO(tensor.coords, data, tensor.shape)

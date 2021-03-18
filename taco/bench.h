@@ -44,6 +44,7 @@
   ->ReportAggregatesOnly(true)                  \
   ->UseRealTime()
 
+std::string getEnvVar(std::string varname);
 std::string getTacoTensorPath();
 std::string getValidationOutputPath();
 // cleanPath ensures that the input path ends with "/".
@@ -55,10 +56,16 @@ taco::Tensor<T> castToType(std::string name, taco::Tensor<double> tensor) {
   taco::Tensor<T> result(name, tensor.getDimensions(), tensor.getFormat());
   std::vector<int> coords(tensor.getOrder());
   for (auto& value : taco::iterate<double>(tensor)) {
-    if (static_cast<T>(value.second) != T(0)) {
-      for (int i = 0; i < tensor.getOrder(); i++) {
-        coords[i] = value.first[i];
-      }
+    for (int i = 0; i < tensor.getOrder(); i++) {
+      coords[i] = value.first[i];
+    }
+    // Attempt to cast the value to an integer. However, if the cast causes
+    // the value to equal 0, then this will ruin the sparsity pattern of the
+    // tensor, as the 0 values will get compressed out. So, if a cast would
+    // equal 0, insert 1 instead to preserve the sparsity pattern of the tensor.
+    if (static_cast<T>(value.second) == T(0)) {
+      result.insert(coords, static_cast<T>(1));
+    } else {
       result.insert(coords, static_cast<T>(value.second));
     }
   }
