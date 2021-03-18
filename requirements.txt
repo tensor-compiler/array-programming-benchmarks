@@ -18,5 +18,6 @@ scipy==1.5.4
 six==1.15.0
 sparse==0.11.2
 toml==0.10.2
+tqdm==4.59.0
 typing-extensions==3.7.4.3
 zipp==3.4.1
