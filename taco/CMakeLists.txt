@@ -21,7 +21,7 @@ file(GLOB TEST_SOURCES *.cpp *.h)
 
 set(CMAKE_CXX_FLAGS "${C_CXX_FLAGS} -std=c++14")
 if (GRAPHBLAS)
-  set(CMAKE_CXX_FLAGS "${C_CXX_FLAGS} -fpermissive")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -fopenmp -fpermissive -fexcess-precision=fast -fno-math-errno -fwrapv")
 endif(GRAPHBLAS)
 
 add_executable(taco-bench ${TEST_SOURCES} bench.h)
