@@ -70,8 +70,9 @@ def bench_add_sparse_strided_window(tacoBench, dim, format, strideWidth):
 
 @pytest.mark.parametrize("dim", [5000, 10000, 20000])
 @pytest.mark.parametrize("format", ['csr', 'csc'])
-def bench_add_sparse_index_set(tacoBench, dim, format):
-    indexes = [i * 2 for i in range(0, dim//2)]
+@pytest.mark.parametrize("fraction", [2, 4, 8])
+def bench_add_sparse_index_set(tacoBench, dim, format, fraction):
+    indexes = [i * fraction for i in range(0, dim//fraction)]
     loader = RandomScipySparseTensorLoader(format)
     matrix = loader.random((dim, dim), 0.01)
     def bench():
@@ -92,9 +93,10 @@ def bench_add_pydata_sparse_strided_window(tacoBench, dim, strideWidth):
 # TODO (rohany): This is really slow (compared to scipy.sparse). Check with hameer
 #  that this result makes sense.
 @pytest.mark.parametrize("dim", [5000, 10000, 20000])
-def bench_add_pydata_sparse_index_set(tacoBench, dim):
+@pytest.mark.parametrize("fraction", [2, 4, 8])
+def bench_add_pydata_sparse_index_set(tacoBench, dim, fraction):
     loader = RandomPydataSparseTensorLoader()
-    indexes = [i * 2 for i in range(0, dim//2)]
+    indexes = [i * fraction for i in range(0, dim//fraction)]
     matrix = loader.random((dim, dim), 0.01)
     def bench():
         x = matrix[:, indexes] 
@@ -104,6 +106,7 @@ def bench_add_pydata_sparse_index_set(tacoBench, dim):
 # TODO (rohany): I don't know if we care about this benchmark.
 @pytest.mark.parametrize("dim", [5000, 10000, 20000])
 @pytest.mark.parametrize("format", ['csr', 'csc'])
+@pytest.mark.skip(reason="not using currently")
 def bench_add_multiple_sparse_windows(tacoBench, dim, format):
     matrix1 = random(dim, dim, format=format)
     matrix2 = random(dim, dim, format=format)

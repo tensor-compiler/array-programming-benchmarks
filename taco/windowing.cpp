@@ -73,8 +73,8 @@ static void bench_add_sparse_window(benchmark::State& state, const Format& f, Wi
     // Setup.
     state.PauseTiming();
     auto result = windowedTensorOp(matrix, dim, config);
+    result.setAssembleWhileCompute(true);
     result.compile();
-    result.assemble();
     state.ResumeTiming();
     // The actual computation.
     result.compute();
@@ -100,8 +100,8 @@ static void bench_add_sparse_strided_window(benchmark::State& state, const Forma
     Tensor<double> result("B", {dim/strideWidth, dim/strideWidth}, f);
     IndexVar i, j;
     result(i, j) = matrix(i(0, dim, strideWidth), j(0, dim, strideWidth)) + matrix(i(0, dim, strideWidth), j(0, dim, strideWidth));
+    result.setAssembleWhileCompute(true);
     result.compile();
-    result.assemble();
     state.ResumeTiming();
     // The actual computation.
     result.compute();
@@ -112,3 +112,30 @@ TACO_BENCH_ARG(bench_add_sparse_strided_window, csr, CSR)
   ->ArgsProduct({tensorSizes, strides});
 TACO_BENCH_ARG(bench_add_sparse_strided_window, csc, CSC)
   ->ArgsProduct({tensorSizes, strides});
+
+static void bench_add_sparse_index_set(benchmark::State& state, const Format& f) {
+  int dim = state.range(0);
+  int fraction = state.range(1);
+  auto sparsity = 0.01;
+  Tensor<double> matrix = loadRandomTensor("A", {dim, dim}, sparsity, f);
+  std::vector<int> indexSet;
+  for (int i = 0; i < dim / fraction; i++) {
+    indexSet.push_back(i * fraction);
+  }
+
+  for (auto _ : state) {
+    // Setup.
+    state.PauseTiming();
+     Tensor<double> result("B", {dim, dim / fraction}, f);
+    IndexVar i("i"), j("j");
+    result(i, j) = matrix(i, j(indexSet)) + matrix(i, j(indexSet));
+    result.setAssembleWhileCompute(true);
+    result.compile();
+    state.ResumeTiming();
+
+    result.compute();
+  }
+}
+std::vector<int64_t> fractions({2, 4, 8});
+TACO_BENCH_ARG(bench_add_sparse_index_set, csr, CSR)
+  ->ArgsProduct({tensorSizes, fractions});
