@@ -33,6 +33,12 @@ struct xorAlgebra {
   }
 };
 
+struct andAlgebra {
+  IterationAlgebra operator()(const std::vector<IndexExpr>& regions) {
+    return Intersect(regions[0], regions[1]);
+  }
+};
+
 struct RightShift{
   ir::Expr operator()(const std::vector<ir::Expr> &v) {
     if (v.size() == 1)
@@ -155,6 +161,33 @@ static void applyBenchSizes(benchmark::internal::Benchmark* b) {
 TACO_BENCH_ARGS(bench_ufunc_sparse, xor_0.01, 0.01, "xor")->Apply(applyBenchSizes);
 TACO_BENCH_ARGS(bench_ufunc_sparse, rightShift_0.01, 0.01, ">>")->Apply(applyBenchSizes);
 
+Func ldExp("ldexp", Ldexp(), leftIncAlgebra());
+Func rightShift("right_shift", RightShift(), leftIncAlgebra());
+Func xorOp("logical_xor", GeneralAdd(), xorAlgebra());
+Func andOp("logical_and", GeneralAdd(), andAlgebra());
+
+static void bench_ufunc_fused(benchmark::State& state, const Format& f) {
+  int dim = state.range(0);
+  auto sparsity = 0.01;
+  Tensor<double> matrix = loadRandomTensor("A", {dim, dim}, sparsity, f);
+  Tensor<double> matrix1 = loadRandomTensor("B", {dim, dim}, sparsity, f, 1 /* variant */);
+  Tensor<double> matrix2 = loadRandomTensor("C", {dim, dim}, sparsity, f, 2 /* variant */);
+
+  for (auto _ : state) {
+    state.PauseTiming();
+    Tensor<double> result("result", {dim, dim}, f);
+    IndexVar i("i"), j("j");
+    result(i, j) = andOp(xorOp(matrix(i, j), matrix1(i, j)), matrix2(i, j));
+    result.setAssembleWhileCompute(true);
+    result.compile();
+    state.ResumeTiming();
+
+    result.compute();
+  }
+}
+TACO_BENCH_ARGS(bench_ufunc_fused, csr, CSR)
+  ->ArgsProduct({{5000, 10000, 20000}});
+
 // UfuncInputCache is a cache for the input to ufunc benchmarks. These benchmarks
 // operate on a tensor loaded from disk and the same tensor shifted slightly. Since
 // these operations are run multiple times, we can save alot in benchmark startup
@@ -241,10 +274,6 @@ static void bench_frostt_ufunc(benchmark::State& state, std::string tnsPath, Fun
     }
   }
 }
-
-Func ldExp("ldexp", Ldexp(), leftIncAlgebra());
-Func rightShift("right_shift", RightShift(), leftIncAlgebra());
-Func xorOp("logical_xor", GeneralAdd(), xorAlgebra());
 
 #define FOREACH_FROSTT_TENSOR(__func__) \
   __func__(nips, "nips.tns") \

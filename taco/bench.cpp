@@ -38,7 +38,7 @@ std::string cleanPath(std::string path) {
   return result;
 }
 
-std::string constructRandomTensorKey(std::vector<int> dims, float sparsity) {
+std::string constructRandomTensorKey(std::vector<int> dims, float sparsity, int variant) {
   auto path = getTacoTensorPath();
   std::stringstream result;
   result << path;
@@ -46,14 +46,18 @@ std::string constructRandomTensorKey(std::vector<int> dims, float sparsity) {
     result << "/";
   }
   result << "random/";
-  result << taco::util::join(dims, "x") << "-" << sparsity << ".tns";
+  if (variant == 0) {
+    result << taco::util::join(dims, "x") << "-" << sparsity << ".tns";
+  } else {
+    result << taco::util::join(dims, "x") << "-" << sparsity << "-" << variant << ".tns";
+  }
   return result.str();
 }
 
-taco::TensorBase loadRandomTensor(std::string name, std::vector<int> dims, float sparsity, taco::Format format) {
+taco::TensorBase loadRandomTensor(std::string name, std::vector<int> dims, float sparsity, taco::Format format, int variant) {
   // For now, just say that the python code must generate the random
   // tensor before use.
-  auto tensor = taco::read(constructRandomTensorKey(dims, sparsity), format, true);
+  auto tensor = taco::read(constructRandomTensorKey(dims, sparsity, variant), format, true);
   tensor.setName(name);
   return tensor;
 }

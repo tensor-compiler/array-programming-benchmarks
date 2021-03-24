@@ -14,7 +14,6 @@ from util import RandomScipySparseTensorLoader, RandomPydataSparseTensorLoader
 sizeConfigs = ["Constant", "ConstantFraction", "AlmostWhole", "Whole", "NoWindowing"]
 
 def sliceTensor(tensor, dim, config):
-    return tensor
     if config == "Constant":
         return tensor[250:750, 250:750]
     elif config == "ConstantFraction":
@@ -36,9 +35,11 @@ def sliceTensor(tensor, dim, config):
 def bench_add_sparse_window(tacoBench, dim, format, config):
     loader = RandomScipySparseTensorLoader(format)
     matrix = loader.random((dim, dim), 0.01)
+    matrix2 = loader.random((dim, dim), 0.01, variant=1)
     def bench():
         x = sliceTensor(matrix, dim, config)
-        res = x + x
+        x2 = sliceTensor(matrix2, dim, config)
+        res = x + x2
         # Sanity check that this has a similar runtime as taco.
         # res = matrix + matrix
     tacoBench(bench)
@@ -50,12 +51,12 @@ def bench_add_sparse_window(tacoBench, dim, format, config):
 def bench_add_pydata_sparse_window(tacoBench, dim, config):
     loader = RandomPydataSparseTensorLoader()
     matrix = loader.random((dim, dim), 0.01)
+    matrix2 = loader.random((dim, dim), 0.01, variant=1)
     def bench():
         x = sliceTensor(matrix, dim, config)
-        res = x + x
+        x2 = sliceTensor(matrix2, dim, config)
+        res = x + x2
     tacoBench(bench)
-
-# TODO (rohany): Parametrize the below tests by appropriate windowing config.
 
 @pytest.mark.parametrize("dim", [5000, 10000, 20000])
 @pytest.mark.parametrize("format", ['csr', 'csc'])
@@ -63,9 +64,11 @@ def bench_add_pydata_sparse_window(tacoBench, dim, config):
 def bench_add_sparse_strided_window(tacoBench, dim, format, strideWidth):
     loader = RandomScipySparseTensorLoader(format)
     matrix = loader.random((dim, dim), 0.01)
+    matrix2 = loader.random((dim, dim), 0.01, variant=1)
     def bench():
         x = matrix[0:dim:strideWidth, 0:dim:strideWidth] 
-        res = x + x
+        x2 = matrix2[0:dim:strideWidth, 0:dim:strideWidth] 
+        res = x + x2
     tacoBench(bench)
 
 @pytest.mark.parametrize("dim", [5000, 10000, 20000])
@@ -75,9 +78,11 @@ def bench_add_sparse_index_set(tacoBench, dim, format, fraction):
     indexes = [i * fraction for i in range(0, dim//fraction)]
     loader = RandomScipySparseTensorLoader(format)
     matrix = loader.random((dim, dim), 0.01)
+    matrix2 = loader.random((dim, dim), 0.01, variant=1)
     def bench():
         x = matrix[:, indexes] 
-        res = x + x
+        x2 = matrix2[:, indexes] 
+        res = x + x2
     tacoBench(bench)
 
 @pytest.mark.parametrize("dim", [5000, 10000, 20000])
@@ -85,9 +90,11 @@ def bench_add_sparse_index_set(tacoBench, dim, format, fraction):
 def bench_add_pydata_sparse_strided_window(tacoBench, dim, strideWidth):
     loader = RandomPydataSparseTensorLoader()
     matrix = loader.random((dim, dim), 0.01)
+    matrix2 = loader.random((dim, dim), 0.01, variant=1)
     def bench():
         x = matrix[0:dim:strideWidth, 0:dim:strideWidth] 
-        res = x + x
+        x2 = matrix[0:dim:strideWidth, 0:dim:strideWidth] 
+        res = x + x2
     tacoBench(bench)
 
 # TODO (rohany): This is really slow (compared to scipy.sparse). Check with hameer
@@ -98,12 +105,13 @@ def bench_add_pydata_sparse_index_set(tacoBench, dim, fraction):
     loader = RandomPydataSparseTensorLoader()
     indexes = [i * fraction for i in range(0, dim//fraction)]
     matrix = loader.random((dim, dim), 0.01)
+    matrix2 = loader.random((dim, dim), 0.01, variant=1)
     def bench():
         x = matrix[:, indexes] 
-        res = x + x
+        x = matrix2[:, indexes] 
+        res = x + x2
     tacoBench(bench)
 
-# TODO (rohany): I don't know if we care about this benchmark.
 @pytest.mark.parametrize("dim", [5000, 10000, 20000])
 @pytest.mark.parametrize("format", ['csr', 'csc'])
 @pytest.mark.skip(reason="not using currently")
