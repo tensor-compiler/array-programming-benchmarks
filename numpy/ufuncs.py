@@ -102,14 +102,35 @@ def bench_pydata_import_ufunc_sparse(tacoBench, dim, ufunc):
 def ufunc_bench_key(tensorName, funcName):
     return tensorName + "-" + funcName + "-numpy"
 
+# UfuncInputCache attempts to avoid reading the same tensor from disk multiple
+# times in a benchmark run.
+class UfuncInputCache:
+    def __init__(self):
+        self.lastLoaded = None
+        self.lastName = None
+        self.tensor = None
+        self.other = None
+
+    def load(self, tensor, suiteSparse):
+        if self.lastName == str(tensor):
+            return self.tensor, self.other
+        else:
+            if suiteSparse:
+                self.lastLoaded = tensor.load(PydataMatrixMarketTensorLoader())
+            else:
+                self.lastLoaded = tensor.load()
+            self.lastName  = str(tensor)
+            self.tensor = safeCastPydataTensorToInts(self.lastLoaded)
+            self.other = PydataTensorShifter().shiftLastMode(self.tensor)
+            return self.tensor, self.other
+inputCache = UfuncInputCache()
+
 # Run benchmarks against the FROSTT collection.
 FROSTTTensors = TensorCollectionFROSTT()
 @pytest.mark.parametrize("tensor", FROSTTTensors.getTensors())
 @pytest.mark.parametrize("ufunc", [numpy.logical_xor, numpy.ldexp, numpy.right_shift])
 def bench_pydata_frostt_ufunc_sparse(tacoBench, tensor, ufunc):
-    frTensor = safeCastPydataTensorToInts(tensor.load())
-    shifter = PydataTensorShifter()
-    other = shifter.shiftLastMode(frTensor)
+    frTensor, other = inputCache.load(tensor, False)
     def bench():
         c = ufunc(frTensor, other)
         return c
@@ -128,9 +149,7 @@ def bench_pydata_frostt_ufunc_sparse(tacoBench, tensor, ufunc):
 @pytest.mark.parametrize("ufunc", [numpy.logical_xor, numpy.ldexp, numpy.right_shift])
 def bench_pydata_suitesparse_ufunc_sparse(tacoBench, ufunc):
     tensor = SuiteSparseTensor(os.getenv('SUITESPARSE_TENSOR_PATH'))
-    ssTensor = safeCastPydataTensorToInts(tensor.load(PydataMatrixMarketTensorLoader()))
-    shifter = PydataTensorShifter()
-    other = shifter.shiftLastMode(ssTensor)
+    ssTensor, other = inputCache.load(tensor, True)
     def bench():
         c = ufunc(ssTensor, other)
         return c
