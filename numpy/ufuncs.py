@@ -3,7 +3,7 @@ from scipy.sparse import random, csr_matrix
 import sparse
 import pytest
 import os
-from util import TensorCollectionFROSTT, PydataTensorShifter, TensorCollectionSuiteSparse, ScipyTensorShifter, PydataMatrixMarketTensorLoader, ScipyMatrixMarketTensorLoader, VALIDATION_OUTPUT_PATH, PydataSparseTensorDumper, SuiteSparseTensor, safeCastPydataTensorToInts
+from util import TensorCollectionFROSTT, PydataTensorShifter, TensorCollectionSuiteSparse, ScipyTensorShifter, PydataMatrixMarketTensorLoader, ScipyMatrixMarketTensorLoader, VALIDATION_OUTPUT_PATH, PydataSparseTensorDumper, SuiteSparseTensor, safeCastPydataTensorToInts, RandomPydataSparseTensorLoader
 
 # TODO (rohany): Ask hameer about this. pydata/sparse isn't happy when
 #  given this ufunc to evaluate.
@@ -34,6 +34,16 @@ def bench_pydata_ufunc_sparse(tacoBench, dim, ufunc):
         C = ufunc(A, B)
     tacoBench(bench)
 
+@pytest.mark.parametrize("dim", [5000, 10000, 20000])
+def bench_pydata_ufunc_fused(tacoBench, dim):
+    loader = RandomPydataSparseTensorLoader()
+    matrix = safeCastPydataTensorToInts(loader.random((dim, dim), 0.01))
+    matrix1 = safeCastPydataTensorToInts(loader.random((dim, dim), 0.01, variant=1))
+    matrix2 = safeCastPydataTensorToInts(loader.random((dim, dim), 0.01, variant=2))
+    def bench():
+        result = numpy.logical_and(numpy.logical_xor(matrix, matrix1), matrix2)
+        return result
+    tacoBench(bench)
 
 def import_tensor(filename, dim):
     print(filename)

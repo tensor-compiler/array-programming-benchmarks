@@ -28,34 +28,34 @@ enum WindowConfig {
   __func__(Whole, Whole) \
   __func__(NoWindowing, NoWindowing)
 
-Tensor<double> windowedTensorOp(Tensor<double> input, int dim, WindowConfig config) {
+Tensor<double> windowedTensorOp(Tensor<double> input1, Tensor<double> input2, int dim, WindowConfig config) {
   IndexVar i, j;
   switch (config) {
     case Constant: {
-      Tensor<double> result("B", {500, 500}, input.getFormat());
-      result(i, j) = input(i(250, 750), j(250, 750)) + input(i(250, 750), j(250, 750));
+      Tensor<double> result("B", {500, 500}, input1.getFormat());
+      result(i, j) = input1(i(250, 750), j(250, 750)) + input2(i(250, 750), j(250, 750));
       return result;
     }
     case ConstantFraction: {
       int size = dim / 4;
       int start = dim / 4;
-      Tensor<double> result("B", {size, size}, input.getFormat());
-      result(i, j) = input(i(start, start + size), j(start, start + size)) + input(i(start, start + size), j(start, start + size));
+      Tensor<double> result("B", {size, size}, input1.getFormat());
+      result(i, j) = input1(i(start, start + size), j(start, start + size)) + input2(i(start, start + size), j(start, start + size));
       return result;
     }
     case AlmostWhole: {
-      Tensor<double> result("B", {dim-2, dim-2}, input.getFormat());
-      result(i, j) = input(i(1, dim-1), j(1, dim-1)) + input(i(1, dim-1), j(1, dim-1));
+      Tensor<double> result("B", {dim-2, dim-2}, input1.getFormat());
+      result(i, j) = input1(i(1, dim-1), j(1, dim-1)) + input2(i(1, dim-1), j(1, dim-1));
       return result;
     }
     case Whole: {
-      Tensor<double> result("B", {dim, dim}, input.getFormat());
-      result(i, j) = input(i(0, dim), j(0, dim)) + input(i(0, dim), j(0, dim));
+      Tensor<double> result("B", {dim, dim}, input1.getFormat());
+      result(i, j) = input1(i(0, dim), j(0, dim)) + input2(i(0, dim), j(0, dim));
       return result;
     }
     case NoWindowing: {
-      Tensor<double> result("B", {dim, dim}, input.getFormat());
-      result(i, j) = input(i, j) + input(i, j);
+      Tensor<double> result("B", {dim, dim}, input1.getFormat());
+      result(i, j) = input1(i, j) + input2(i, j);
       return result;
     }
     default:
@@ -67,12 +67,13 @@ static void bench_add_sparse_window(benchmark::State& state, const Format& f, Wi
   int dim = state.range(0);
   auto sparsity = 0.01;
   Tensor<double> matrix = loadRandomTensor("A", {dim, dim}, sparsity, f);
+  Tensor<double> matrix2 = loadRandomTensor("A2", {dim, dim}, sparsity, f, 1 /* variant */);
   matrix.pack();
 
   for (auto _ : state) {
     // Setup.
     state.PauseTiming();
-    auto result = windowedTensorOp(matrix, dim, config);
+    auto result = windowedTensorOp(matrix, matrix2, dim, config);
     result.setAssembleWhileCompute(true);
     result.compile();
     state.ResumeTiming();
@@ -92,6 +93,7 @@ static void bench_add_sparse_strided_window(benchmark::State& state, const Forma
   int strideWidth = state.range(1);
   auto sparsity = 0.01;
   Tensor<double> matrix = loadRandomTensor("A", {dim, dim}, sparsity, f);
+  Tensor<double> matrix2 = loadRandomTensor("A2", {dim, dim}, sparsity, f, 1 /* variant */);
   matrix.pack();
 
   for (auto _ : state) {
@@ -99,7 +101,7 @@ static void bench_add_sparse_strided_window(benchmark::State& state, const Forma
     state.PauseTiming();
     Tensor<double> result("B", {dim/strideWidth, dim/strideWidth}, f);
     IndexVar i, j;
-    result(i, j) = matrix(i(0, dim, strideWidth), j(0, dim, strideWidth)) + matrix(i(0, dim, strideWidth), j(0, dim, strideWidth));
+    result(i, j) = matrix(i(0, dim, strideWidth), j(0, dim, strideWidth)) + matrix2(i(0, dim, strideWidth), j(0, dim, strideWidth));
     result.setAssembleWhileCompute(true);
     result.compile();
     state.ResumeTiming();
@@ -118,6 +120,7 @@ static void bench_add_sparse_index_set(benchmark::State& state, const Format& f)
   int fraction = state.range(1);
   auto sparsity = 0.01;
   Tensor<double> matrix = loadRandomTensor("A", {dim, dim}, sparsity, f);
+  Tensor<double> matrix2 = loadRandomTensor("A", {dim, dim}, sparsity, f, 1 /* variant */);
   std::vector<int> indexSet;
   for (int i = 0; i < dim / fraction; i++) {
     indexSet.push_back(i * fraction);
@@ -126,9 +129,9 @@ static void bench_add_sparse_index_set(benchmark::State& state, const Format& f)
   for (auto _ : state) {
     // Setup.
     state.PauseTiming();
-     Tensor<double> result("B", {dim, dim / fraction}, f);
+    Tensor<double> result("B", {dim, dim / fraction}, f);
     IndexVar i("i"), j("j");
-    result(i, j) = matrix(i, j(indexSet)) + matrix(i, j(indexSet));
+    result(i, j) = matrix(i, j(indexSet)) + matrix2(i, j(indexSet));
     result.setAssembleWhileCompute(true);
     result.compile();
     state.ResumeTiming();

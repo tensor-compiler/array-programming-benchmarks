@@ -92,10 +92,13 @@ class PydataSparseTensorDumper:
 # The key itself is formatted by the dimensions, followed by the
 # sparsity. For example, a 250 by 250 tensor with sparsity 0.01
 # would have a key of 250x250-0.01.tns.
-def construct_random_tensor_key(shape, sparsity):
+def construct_random_tensor_key(shape, sparsity, variant):
     path = TENSOR_PATH
     dims = "x".join([str(dim) for dim in shape])
-    key = "{}-{}.tns".format(dims, sparsity)
+    if variant is None:
+        key = "{}-{}.tns".format(dims, sparsity)
+    else:
+        key = "{}-{}-{}.tns".format(dims, sparsity, variant)
     return os.path.join(path, "random", key)
 
 # RandomPydataSparseTensorLoader should be used to generate
@@ -106,8 +109,8 @@ class RandomPydataSparseTensorLoader:
     def __init__(self):
         self.loader = PydataSparseTensorLoader()
 
-    def random(self, shape, sparsity):
-        key = construct_random_tensor_key(shape, sparsity)
+    def random(self, shape, sparsity, variant=None):
+        key = construct_random_tensor_key(shape, sparsity, variant)
         # If a tensor with these properties exists already, then load it.
         if os.path.exists(key):
             return self.loader.load(key)
@@ -126,9 +129,9 @@ class RandomScipySparseTensorLoader:
         self.loader = ScipySparseTensorLoader(format)
         self.format = format
 
-    def random(self, shape, sparsity):
+    def random(self, shape, sparsity, variant=None):
         assert(len(shape) == 2)
-        key = construct_random_tensor_key(shape, sparsity)
+        key = construct_random_tensor_key(shape, sparsity, variant)
         # If a tensor with these properties exists already, then load it.
         if os.path.exists(key):
             return self.loader.load(key)
