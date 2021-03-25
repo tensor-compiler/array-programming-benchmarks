@@ -83,8 +83,7 @@ static void bench_add_sparse_window(benchmark::State& state, const Format& f, Wi
 }
 
 #define DECLARE_ADD_SPARSE_WINDOW_BENCH(configName, config) \
-  TACO_BENCH_ARGS(bench_add_sparse_window, csr/configName, CSR, config)->ArgsProduct({tensorSizes}); \
-  TACO_BENCH_ARGS(bench_add_sparse_window, csc/configName, CSC, config)->ArgsProduct({tensorSizes});
+  TACO_BENCH_ARGS(bench_add_sparse_window, csr/configName, CSR, config)->ArgsProduct({tensorSizes});
 
 FOREACH_WINDOW_CONFIG(DECLARE_ADD_SPARSE_WINDOW_BENCH)
 
@@ -120,7 +119,7 @@ static void bench_add_sparse_index_set(benchmark::State& state, const Format& f)
   int fraction = state.range(1);
   auto sparsity = 0.01;
   Tensor<double> matrix = loadRandomTensor("A", {dim, dim}, sparsity, f);
-  Tensor<double> matrix2 = loadRandomTensor("A", {dim, dim}, sparsity, f, 1 /* variant */);
+  Tensor<double> matrix2 = loadRandomTensor("A2", {dim, dim}, sparsity, f, 1 /* variant */);
   std::vector<int> indexSet;
   for (int i = 0; i < dim / fraction; i++) {
     indexSet.push_back(i * fraction);
@@ -139,6 +138,7 @@ static void bench_add_sparse_index_set(benchmark::State& state, const Format& f)
     result.compute();
   }
 }
-std::vector<int64_t> fractions({2, 4, 8});
-TACO_BENCH_ARG(bench_add_sparse_index_set, csr, CSR)
-  ->ArgsProduct({tensorSizes, fractions});
+// Not doing index sets currently.
+// std::vector<int64_t> fractions({2, 4, 8});
+// TACO_BENCH_ARG(bench_add_sparse_index_set, csr, CSR)
+//   ->ArgsProduct({tensorSizes, fractions});
