@@ -185,8 +185,8 @@ static void bench_ufunc_fused(benchmark::State& state, const Format& f) {
     result.compute();
   }
 }
-TACO_BENCH_ARGS(bench_ufunc_fused, csr, CSR)
-  ->ArgsProduct({{5000, 10000, 20000}});
+// TACO_BENCH_ARGS(bench_ufunc_fused, csr, CSR)
+//   ->ArgsProduct({{5000, 10000, 20000}});
 
 // UfuncInputCache is a cache for the input to ufunc benchmarks. These benchmarks
 // operate on a tensor loaded from disk and the same tensor shifted slightly. Since
@@ -307,6 +307,87 @@ static void bench_frostt_ufunc(benchmark::State& state, std::string tnsPath, Fun
   TACO_BENCH_ARGS(bench_frostt_ufunc, name/rightShift, path, rightShift); \
 
 FOREACH_FROSTT_TENSOR(DECLARE_FROSTT_UFUNC_BENCH)
+
+enum FusedUfuncOp {
+  XOR_AND = 1,
+};
+
+static void bench_frostt_ufunc_fused(benchmark::State& state, std::string tnsPath, FusedUfuncOp op) {
+  auto frosttTensorPath = getTacoTensorPath();
+  frosttTensorPath += "FROSTT/";
+  frosttTensorPath += tnsPath;
+
+  auto pathSplit = taco::util::split(tnsPath, "/");
+  auto filename = pathSplit[pathSplit.size() - 1];
+  auto tensorName = taco::util::split(filename, ".")[0];
+  state.SetLabel(tensorName);
+
+  Tensor<int64_t> frosttTensor, other;
+  std::tie(frosttTensor, other) = inputCache.getUfuncInput(frosttTensorPath, Sparse);
+  Tensor<int64_t> third = shiftLastMode<int64_t, int64_t>("C", other);
+
+  for (auto _ : state) {
+    state.PauseTiming();
+    Tensor<int64_t> result("result", frosttTensor.getDimensions(), frosttTensor.getFormat());
+    result.setAssembleWhileCompute(true);
+    // We have to unfortunately perform this double nesting because for some reason
+    // I get a TACO generated code compilation error trying to lift the ufunc operation
+    // into lambda.
+    switch (frosttTensor.getOrder()) {
+      case 3: {
+        IndexVar i, j, k;
+        switch (op) {
+          case XOR_AND: {
+            result(i, j, k) = andOp(xorOp(frosttTensor(i, j, k), other(i, j, k)), third(i, j, k));
+            break;
+          }
+          default:
+            state.SkipWithError("invalid fused op");
+            return;
+        }
+        break;
+      }
+      case 4: {
+        IndexVar i, j, k, l;
+        switch (op) {
+          case XOR_AND: {
+            result(i, j, k, l) = andOp(xorOp(frosttTensor(i, j, k, l), other(i, j, k, l)), third(i, j, k, l));
+            break;
+          }
+          default:
+            state.SkipWithError("invalid fused op");
+            return;
+        }
+        break;
+      }
+      case 5: {
+        IndexVar i, j, k, l, m;
+        switch (op) {
+          case XOR_AND: {
+            result(i, j, k, l, m) = andOp(xorOp(frosttTensor(i, j, k, l, m), other(i, j, k, l, m)), third(i, j, k, l, m));
+            break;
+          }
+          default:
+            state.SkipWithError("invalid fused op");
+            return;
+        }
+        break;
+      }
+      default:
+        state.SkipWithError("invalid tensor dimension");
+        return;
+    }
+    result.compile();
+    state.ResumeTiming();
+
+    result.compute();
+  }
+}
+
+#define DECLARE_FROSTT_FUSED_UFUNC_BENCH(name, path) \
+  TACO_BENCH_ARGS(bench_frostt_ufunc_fused, name/xorAndFused, path, XOR_AND); \
+
+FOREACH_FROSTT_TENSOR(DECLARE_FROSTT_FUSED_UFUNC_BENCH)
 
 struct SuiteSparseTensors {
  SuiteSparseTensors() {
