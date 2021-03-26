@@ -4,6 +4,7 @@
 #include "taco/tensor.h"
 #include "taco/format.h"
 #include "taco/index_notation/index_notation.h"
+#include "taco/lower/mode_format_compressed.h"
 
 using namespace taco;
 
@@ -28,8 +29,10 @@ enum WindowConfig {
   __func__(Whole, Whole) \
   __func__(NoWindowing, NoWindowing)
 
-Tensor<double> windowedTensorOp(Tensor<double> input1, Tensor<double> input2, int dim, WindowConfig config) {
+Tensor<double> windowedTensorOp(Tensor<double> input1, Tensor<double> input2, int dim, WindowConfig config, float sparsity) {
   IndexVar i, j;
+  ModeFormat CompressedLarge(std::make_shared<CompressedModeFormat>(false, true, true, false, int(2 * sparsity * input1.getDimension(0) * input1.getDimension(0))));
+
   switch (config) {
     case Constant: {
       Tensor<double> result("B", {500, 500}, input1.getFormat());
@@ -44,17 +47,17 @@ Tensor<double> windowedTensorOp(Tensor<double> input1, Tensor<double> input2, in
       return result;
     }
     case AlmostWhole: {
-      Tensor<double> result("B", {dim-2, dim-2}, input1.getFormat());
+      Tensor<double> result("B", {dim-2, dim-2}, {Dense, CompressedLarge});
       result(i, j) = input1(i(1, dim-1), j(1, dim-1)) + input2(i(1, dim-1), j(1, dim-1));
       return result;
     }
     case Whole: {
-      Tensor<double> result("B", {dim, dim}, input1.getFormat());
+      Tensor<double> result("B", {dim, dim}, {Dense, CompressedLarge});
       result(i, j) = input1(i(0, dim), j(0, dim)) + input2(i(0, dim), j(0, dim));
       return result;
     }
     case NoWindowing: {
-      Tensor<double> result("B", {dim, dim}, input1.getFormat());
+      Tensor<double> result("B", {dim, dim}, {Dense, CompressedLarge});
       result(i, j) = input1(i, j) + input2(i, j);
       return result;
     }
@@ -69,11 +72,12 @@ static void bench_add_sparse_window(benchmark::State& state, const Format& f, Wi
   Tensor<double> matrix = loadRandomTensor("A", {dim, dim}, sparsity, f);
   Tensor<double> matrix2 = loadRandomTensor("A2", {dim, dim}, sparsity, f, 1 /* variant */);
   matrix.pack();
+  matrix2.pack();
 
   for (auto _ : state) {
     // Setup.
     state.PauseTiming();
-    auto result = windowedTensorOp(matrix, matrix2, dim, config);
+    auto result = windowedTensorOp(matrix, matrix2, dim, config, sparsity);
     result.setAssembleWhileCompute(true);
     result.compile();
     state.ResumeTiming();
@@ -110,8 +114,6 @@ static void bench_add_sparse_strided_window(benchmark::State& state, const Forma
 }
 std::vector<int64_t> strides({2, 4, 8});
 TACO_BENCH_ARG(bench_add_sparse_strided_window, csr, CSR)
-  ->ArgsProduct({tensorSizes, strides});
-TACO_BENCH_ARG(bench_add_sparse_strided_window, csc, CSC)
   ->ArgsProduct({tensorSizes, strides});
 
 static void bench_add_sparse_index_set(benchmark::State& state, const Format& f) {
