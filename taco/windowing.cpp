@@ -66,9 +66,8 @@ Tensor<double> windowedTensorOp(Tensor<double> input1, Tensor<double> input2, in
   }
 }
 
-static void bench_add_sparse_window(benchmark::State& state, const Format& f, WindowConfig config) {
+static void bench_add_sparse_window(benchmark::State& state, const Format& f, WindowConfig config, float sparsity) {
   int dim = state.range(0);
-  auto sparsity = 0.01;
   Tensor<double> matrix = loadRandomTensor("A", {dim, dim}, sparsity, f);
   Tensor<double> matrix2 = loadRandomTensor("A2", {dim, dim}, sparsity, f, 1 /* variant */);
   matrix.pack();
@@ -87,14 +86,15 @@ static void bench_add_sparse_window(benchmark::State& state, const Format& f, Wi
 }
 
 #define DECLARE_ADD_SPARSE_WINDOW_BENCH(configName, config) \
-  TACO_BENCH_ARGS(bench_add_sparse_window, csr/configName, CSR, config)->ArgsProduct({tensorSizes});
+  TACO_BENCH_ARGS(bench_add_sparse_window, csr/configName/0.01, CSR, config, 0.01)->ArgsProduct({tensorSizes}); \
+  TACO_BENCH_ARGS(bench_add_sparse_window, csr/configName/0.005, CSR, config, 0.005)->ArgsProduct({tensorSizes}); \
+  TACO_BENCH_ARGS(bench_add_sparse_window, csr/configName/0.05, CSR, config, 0.05)->ArgsProduct({tensorSizes}); \
 
 FOREACH_WINDOW_CONFIG(DECLARE_ADD_SPARSE_WINDOW_BENCH)
 
-static void bench_add_sparse_strided_window(benchmark::State& state, const Format& f) {
+static void bench_add_sparse_strided_window(benchmark::State& state, const Format& f, float sparsity) {
   int dim = state.range(0);
   int strideWidth = state.range(1);
-  auto sparsity = 0.01;
   Tensor<double> matrix = loadRandomTensor("A", {dim, dim}, sparsity, f);
   Tensor<double> matrix2 = loadRandomTensor("A2", {dim, dim}, sparsity, f, 1 /* variant */);
   matrix.pack();
@@ -113,8 +113,9 @@ static void bench_add_sparse_strided_window(benchmark::State& state, const Forma
   }
 }
 std::vector<int64_t> strides({2, 4, 8});
-TACO_BENCH_ARG(bench_add_sparse_strided_window, csr, CSR)
-  ->ArgsProduct({tensorSizes, strides});
+TACO_BENCH_ARGS(bench_add_sparse_strided_window, csr/0.01, CSR, 0.01)->ArgsProduct({tensorSizes, strides});
+TACO_BENCH_ARGS(bench_add_sparse_strided_window, csr/0.005, CSR, 0.005)->ArgsProduct({tensorSizes, strides});
+TACO_BENCH_ARGS(bench_add_sparse_strided_window, csr/0.05, CSR, 0.05)->ArgsProduct({tensorSizes, strides});
 
 static void bench_add_sparse_index_set(benchmark::State& state, const Format& f) {
   int dim = state.range(0);
