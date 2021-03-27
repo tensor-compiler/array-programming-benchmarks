@@ -32,11 +32,12 @@ def sliceTensor(tensor, dim, config):
 # Benchmark to measure the time it takes to perform the slice.
 @pytest.mark.parametrize("dim", [5000, 10000, 20000])
 @pytest.mark.parametrize("format", ['csr'])
+@pytest.mark.parametrize("sparsity", [0.01, 0.005, 0.05])
 @pytest.mark.parametrize("config", sizeConfigs[:len(sizeConfigs)-1])
-def bench_slice_sparse_window(tacoBench, dim, format, config):
+def bench_slice_sparse_window(tacoBench, dim, format, sparsity, config):
     loader = RandomScipySparseTensorLoader(format)
-    matrix = loader.random((dim, dim), 0.01).astype('float64')
-    matrix2 = loader.random((dim, dim), 0.01, variant=1).astype('float64')
+    matrix = loader.random((dim, dim), sparsity).astype('float64')
+    matrix2 = loader.random((dim, dim), sparsity, variant=1).astype('float64')
     def bench():
         x = sliceTensor(matrix, dim, config)
         x2 = sliceTensor(matrix2, dim, config)
@@ -46,11 +47,12 @@ def bench_slice_sparse_window(tacoBench, dim, format, config):
 # Benchmark to measure the time it takes to perform the addition.
 @pytest.mark.parametrize("dim", [5000, 10000, 20000])
 @pytest.mark.parametrize("format", ['csr'])
+@pytest.mark.parametrize("sparsity", [0.01, 0.005, 0.05])
 @pytest.mark.parametrize("config", sizeConfigs[:len(sizeConfigs)-1])
-def bench_add_sliced_sparse_window(tacoBench, dim, format, config):
+def bench_add_sliced_sparse_window(tacoBench, dim, format, sparsity, config):
     loader = RandomScipySparseTensorLoader(format)
-    matrix = loader.random((dim, dim), 0.01).astype('float64')
-    matrix2 = loader.random((dim, dim), 0.01, variant=1).astype('float64')
+    matrix = loader.random((dim, dim), sparsity).astype('float64')
+    matrix2 = loader.random((dim, dim), sparsity, variant=1).astype('float64')
     x = sliceTensor(matrix, dim, config)
     x2 = sliceTensor(matrix2, dim, config)
     def bench():
@@ -60,11 +62,12 @@ def bench_add_sliced_sparse_window(tacoBench, dim, format, config):
 # Benchmark that performs the slice and addition.
 @pytest.mark.parametrize("dim", [5000, 10000, 20000])
 @pytest.mark.parametrize("format", ['csr'])
+@pytest.mark.parametrize("sparsity", [0.01, 0.005, 0.05])
 @pytest.mark.parametrize("config", sizeConfigs)
-def bench_add_sparse_window(tacoBench, dim, format, config):
+def bench_add_sparse_window(tacoBench, dim, format, sparsity, config):
     loader = RandomScipySparseTensorLoader(format)
-    matrix = loader.random((dim, dim), 0.01).astype('float64')
-    matrix2 = loader.random((dim, dim), 0.01, variant=1).astype('float64')
+    matrix = loader.random((dim, dim), sparsity).astype('float64')
+    matrix2 = loader.random((dim, dim), sparsity, variant=1).astype('float64')
     def bench():
         x = sliceTensor(matrix, dim, config)
         x2 = sliceTensor(matrix2, dim, config)
@@ -74,11 +77,12 @@ def bench_add_sparse_window(tacoBench, dim, format, config):
     tacoBench(bench)
 
 @pytest.mark.parametrize("dim", [5000, 10000, 20000])
+@pytest.mark.parametrize("sparsity", [0.01, 0.005, 0.05])
 @pytest.mark.parametrize("config", sizeConfigs[:len(sizeConfigs)-1])
-def bench_slice_pydata_sparse_window(tacoBench, dim, config):
+def bench_slice_pydata_sparse_window(tacoBench, dim, sparsity, config):
     loader = RandomPydataSparseTensorLoader()
-    matrix = loader.random((dim, dim), 0.01).astype('float64')
-    matrix2 = loader.random((dim, dim), 0.01, variant=1).astype('float64')
+    matrix = loader.random((dim, dim), sparsity).astype('float64')
+    matrix2 = loader.random((dim, dim), sparsity, variant=1).astype('float64')
     def bench():
         x = sliceTensor(matrix, dim, config)
         x2 = sliceTensor(matrix2, dim, config)
@@ -86,11 +90,12 @@ def bench_slice_pydata_sparse_window(tacoBench, dim, config):
     tacoBench(bench)
 
 @pytest.mark.parametrize("dim", [5000, 10000, 20000])
+@pytest.mark.parametrize("sparsity", [0.01, 0.005, 0.05])
 @pytest.mark.parametrize("config", sizeConfigs[:len(sizeConfigs)-1])
-def bench_add_sliced_pydata_sparse_window(tacoBench, dim, config):
+def bench_add_sliced_pydata_sparse_window(tacoBench, dim, sparsity, config):
     loader = RandomPydataSparseTensorLoader()
-    matrix = loader.random((dim, dim), 0.01).astype('float64')
-    matrix2 = loader.random((dim, dim), 0.01, variant=1).astype('float64')
+    matrix = loader.random((dim, dim), sparsity).astype('float64')
+    matrix2 = loader.random((dim, dim), sparsity, variant=1).astype('float64')
     x = sliceTensor(matrix, dim, config)
     x2 = sliceTensor(matrix2, dim, config)
     def bench():
@@ -98,11 +103,12 @@ def bench_add_sliced_pydata_sparse_window(tacoBench, dim, config):
     tacoBench(bench)
 
 @pytest.mark.parametrize("dim", [5000, 10000, 20000])
+@pytest.mark.parametrize("sparsity", [0.01, 0.005, 0.05])
 @pytest.mark.parametrize("config", sizeConfigs)
-def bench_add_pydata_sparse_window(tacoBench, dim, config):
+def bench_add_pydata_sparse_window(tacoBench, dim, sparsity, config):
     loader = RandomPydataSparseTensorLoader()
-    matrix = loader.random((dim, dim), 0.01).astype('float64')
-    matrix2 = loader.random((dim, dim), 0.01, variant=1).astype('float64')
+    matrix = loader.random((dim, dim), sparsity).astype('float64')
+    matrix2 = loader.random((dim, dim), sparsity, variant=1).astype('float64')
     def bench():
         x = sliceTensor(matrix, dim, config)
         x2 = sliceTensor(matrix2, dim, config)
@@ -111,11 +117,12 @@ def bench_add_pydata_sparse_window(tacoBench, dim, config):
 
 @pytest.mark.parametrize("dim", [5000, 10000, 20000])
 @pytest.mark.parametrize("format", ['csr'])
+@pytest.mark.parametrize("sparsity", [0.01, 0.005, 0.05])
 @pytest.mark.parametrize("strideWidth", [2, 4, 8])
-def bench_slice_strided_window(tacoBench, dim, format, strideWidth):
+def bench_slice_strided_window(tacoBench, dim, format, sparsity, strideWidth):
     loader = RandomScipySparseTensorLoader(format)
-    matrix = loader.random((dim, dim), 0.01).astype('float64')
-    matrix2 = loader.random((dim, dim), 0.01, variant=1).astype('float64')
+    matrix = loader.random((dim, dim), sparsity).astype('float64')
+    matrix2 = loader.random((dim, dim), sparsity, variant=1).astype('float64')
     def bench():
         x = matrix[0:dim:strideWidth, 0:dim:strideWidth] 
         x2 = matrix2[0:dim:strideWidth, 0:dim:strideWidth] 
@@ -124,11 +131,12 @@ def bench_slice_strided_window(tacoBench, dim, format, strideWidth):
 
 @pytest.mark.parametrize("dim", [5000, 10000, 20000])
 @pytest.mark.parametrize("format", ['csr'])
+@pytest.mark.parametrize("sparsity", [0.01, 0.005, 0.05])
 @pytest.mark.parametrize("strideWidth", [2, 4, 8])
-def bench_add_sliced_sparse_strided_window(tacoBench, dim, format, strideWidth):
+def bench_add_sliced_sparse_strided_window(tacoBench, dim, format, sparsity, strideWidth):
     loader = RandomScipySparseTensorLoader(format)
-    matrix = loader.random((dim, dim), 0.01).astype('float64')
-    matrix2 = loader.random((dim, dim), 0.01, variant=1).astype('float64')
+    matrix = loader.random((dim, dim), sparsity).astype('float64')
+    matrix2 = loader.random((dim, dim), sparsity, variant=1).astype('float64')
     x = matrix[0:dim:strideWidth, 0:dim:strideWidth] 
     x2 = matrix2[0:dim:strideWidth, 0:dim:strideWidth] 
     def bench():
@@ -137,11 +145,12 @@ def bench_add_sliced_sparse_strided_window(tacoBench, dim, format, strideWidth):
 
 @pytest.mark.parametrize("dim", [5000, 10000, 20000])
 @pytest.mark.parametrize("format", ['csr'])
+@pytest.mark.parametrize("sparsity", [0.01, 0.005, 0.05])
 @pytest.mark.parametrize("strideWidth", [2, 4, 8])
-def bench_add_sparse_strided_window(tacoBench, dim, format, strideWidth):
+def bench_add_sparse_strided_window(tacoBench, dim, format, sparsity, strideWidth):
     loader = RandomScipySparseTensorLoader(format)
-    matrix = loader.random((dim, dim), 0.01).astype('float64')
-    matrix2 = loader.random((dim, dim), 0.01, variant=1).astype('float64')
+    matrix = loader.random((dim, dim), sparsity).astype('float64')
+    matrix2 = loader.random((dim, dim), sparsity, variant=1).astype('float64')
     def bench():
         x = matrix[0:dim:strideWidth, 0:dim:strideWidth] 
         x2 = matrix2[0:dim:strideWidth, 0:dim:strideWidth] 
@@ -149,11 +158,12 @@ def bench_add_sparse_strided_window(tacoBench, dim, format, strideWidth):
     tacoBench(bench)
 
 @pytest.mark.parametrize("dim", [5000, 10000, 20000])
+@pytest.mark.parametrize("sparsity", [0.01, 0.005, 0.05])
 @pytest.mark.parametrize("strideWidth", [2, 4, 8])
-def bench_slice_pydata_sparse_strided_window(tacoBench, dim, strideWidth):
+def bench_slice_pydata_sparse_strided_window(tacoBench, dim, sparsity, strideWidth):
     loader = RandomPydataSparseTensorLoader()
-    matrix = loader.random((dim, dim), 0.01).astype('float64')
-    matrix2 = loader.random((dim, dim), 0.01, variant=1).astype('float64')
+    matrix = loader.random((dim, dim), sparsity).astype('float64')
+    matrix2 = loader.random((dim, dim), sparsity, variant=1).astype('float64')
     def bench():
         x = matrix[0:dim:strideWidth, 0:dim:strideWidth] 
         x2 = matrix2[0:dim:strideWidth, 0:dim:strideWidth] 
@@ -161,11 +171,12 @@ def bench_slice_pydata_sparse_strided_window(tacoBench, dim, strideWidth):
     tacoBench(bench)
 
 @pytest.mark.parametrize("dim", [5000, 10000, 20000])
+@pytest.mark.parametrize("sparsity", [0.01, 0.005, 0.05])
 @pytest.mark.parametrize("strideWidth", [2, 4, 8])
-def bench_add_sliced_pydata_sparse_strided_window(tacoBench, dim, strideWidth):
+def bench_add_sliced_pydata_sparse_strided_window(tacoBench, dim, sparsity, strideWidth):
     loader = RandomPydataSparseTensorLoader()
-    matrix = loader.random((dim, dim), 0.01).astype('float64')
-    matrix2 = loader.random((dim, dim), 0.01, variant=1).astype('float64')
+    matrix = loader.random((dim, dim), sparsity).astype('float64')
+    matrix2 = loader.random((dim, dim), sparsity, variant=1).astype('float64')
     x = matrix[0:dim:strideWidth, 0:dim:strideWidth] 
     x2 = matrix2[0:dim:strideWidth, 0:dim:strideWidth] 
     def bench():
@@ -173,11 +184,12 @@ def bench_add_sliced_pydata_sparse_strided_window(tacoBench, dim, strideWidth):
     tacoBench(bench)
 
 @pytest.mark.parametrize("dim", [5000, 10000, 20000])
+@pytest.mark.parametrize("sparsity", [0.01, 0.005, 0.05])
 @pytest.mark.parametrize("strideWidth", [2, 4, 8])
-def bench_add_pydata_sparse_strided_window(tacoBench, dim, strideWidth):
+def bench_add_pydata_sparse_strided_window(tacoBench, dim, sparsity, strideWidth):
     loader = RandomPydataSparseTensorLoader()
-    matrix = loader.random((dim, dim), 0.01).astype('float64')
-    matrix2 = loader.random((dim, dim), 0.01, variant=1).astype('float64')
+    matrix = loader.random((dim, dim), sparsity).astype('float64')
+    matrix2 = loader.random((dim, dim), sparsity, variant=1).astype('float64')
     def bench():
         x = matrix[0:dim:strideWidth, 0:dim:strideWidth] 
         x2 = matrix2[0:dim:strideWidth, 0:dim:strideWidth] 
