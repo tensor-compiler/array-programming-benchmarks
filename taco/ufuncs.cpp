@@ -39,6 +39,12 @@ struct andAlgebra {
   }
 };
 
+struct orAlgebra {
+  IterationAlgebra operator()(const std::vector<IndexExpr>& regions) {
+    return Union(regions[0], regions[1]);
+  }
+};
+
 struct RightShift{
   ir::Expr operator()(const std::vector<ir::Expr> &v) {
     if (v.size() == 1)
@@ -165,6 +171,7 @@ Func ldExp("ldexp", Ldexp(), leftIncAlgebra());
 Func rightShift("right_shift", RightShift(), leftIncAlgebra());
 Func xorOp("logical_xor", GeneralAdd(), xorAlgebra());
 Func andOp("logical_and", GeneralAdd(), andAlgebra());
+Func orOp("logical_or", GeneralAdd(), orAlgebra());
 
 static void bench_ufunc_fused(benchmark::State& state, const Format& f) {
   int dim = state.range(0);
@@ -310,6 +317,7 @@ FOREACH_FROSTT_TENSOR(DECLARE_FROSTT_UFUNC_BENCH)
 
 enum FusedUfuncOp {
   XOR_AND = 1,
+  XOR_OR = 2,
 };
 
 static void bench_frostt_ufunc_fused(benchmark::State& state, std::string tnsPath, FusedUfuncOp op) {
@@ -341,6 +349,10 @@ static void bench_frostt_ufunc_fused(benchmark::State& state, std::string tnsPat
             result(i, j, k) = andOp(xorOp(frosttTensor(i, j, k), other(i, j, k)), third(i, j, k));
             break;
           }
+          case XOR_OR: {
+            result(i, j, k) = orOp(xorOp(frosttTensor(i, j, k), other(i, j, k)), third(i, j, k));
+            break;
+          }
           default:
             state.SkipWithError("invalid fused op");
             return;
@@ -354,6 +366,10 @@ static void bench_frostt_ufunc_fused(benchmark::State& state, std::string tnsPat
             result(i, j, k, l) = andOp(xorOp(frosttTensor(i, j, k, l), other(i, j, k, l)), third(i, j, k, l));
             break;
           }
+          case XOR_OR: {
+            result(i, j, k, l) = orOp(xorOp(frosttTensor(i, j, k, l), other(i, j, k, l)), third(i, j, k, l));
+            break;
+          }
           default:
             state.SkipWithError("invalid fused op");
             return;
@@ -365,6 +381,10 @@ static void bench_frostt_ufunc_fused(benchmark::State& state, std::string tnsPat
         switch (op) {
           case XOR_AND: {
             result(i, j, k, l, m) = andOp(xorOp(frosttTensor(i, j, k, l, m), other(i, j, k, l, m)), third(i, j, k, l, m));
+            break;
+          }
+          case XOR_OR: {
+            result(i, j, k, l, m) = orOp(xorOp(frosttTensor(i, j, k, l, m), other(i, j, k, l, m)), third(i, j, k, l, m));
             break;
           }
           default:
@@ -386,6 +406,7 @@ static void bench_frostt_ufunc_fused(benchmark::State& state, std::string tnsPat
 
 #define DECLARE_FROSTT_FUSED_UFUNC_BENCH(name, path) \
   TACO_BENCH_ARGS(bench_frostt_ufunc_fused, name/xorAndFused, path, XOR_AND); \
+  TACO_BENCH_ARGS(bench_frostt_ufunc_fused, name/xorOrFused, path, XOR_OR); \
 
 FOREACH_FROSTT_TENSOR(DECLARE_FROSTT_FUSED_UFUNC_BENCH)
 

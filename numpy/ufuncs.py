@@ -145,8 +145,14 @@ def bench_pydata_frostt_ufunc_sparse(tacoBench, tensor, ufunc):
     else:
         tacoBench(bench, extra_info)
 
-fusedFuncs = [lambda a, b, c: numpy.logical_and(numpy.logical_xor(a, b), c)]
-fusedFuncNames = ["xorAndFused"]
+fusedFuncs = [
+        lambda a, b, c: numpy.logical_and(numpy.logical_xor(a, b), c),
+        lambda a, b, c: numpy.logical_or(numpy.logical_xor(a, b), c),
+]
+fusedFuncNames = [
+        "xorAndFused", 
+        "xorOrFused",
+]
 fusedFuncs = zip(fusedFuncs, fusedFuncNames)
 @pytest.mark.parametrize("tensor", FROSTTTensors.getTensors())
 @pytest.mark.parametrize("func", fusedFuncs, ids=fusedFuncNames)
