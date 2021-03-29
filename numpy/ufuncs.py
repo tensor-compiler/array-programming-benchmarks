@@ -128,7 +128,7 @@ inputCache = UfuncInputCache()
 # Run benchmarks against the FROSTT collection.
 FROSTTTensors = TensorCollectionFROSTT()
 @pytest.mark.parametrize("tensor", FROSTTTensors.getTensors())
-@pytest.mark.parametrize("ufunc", [numpy.bitwise_xor, numpy.ldexp, numpy.right_shift])
+@pytest.mark.parametrize("ufunc", [numpy.logical_xor, numpy.ldexp, numpy.right_shift])
 def bench_pydata_frostt_ufunc_sparse(tacoBench, tensor, ufunc):
     frTensor, other = inputCache.load(tensor, False)
     def bench():
@@ -145,7 +145,7 @@ def bench_pydata_frostt_ufunc_sparse(tacoBench, tensor, ufunc):
     else:
         tacoBench(bench, extra_info)
 
-fusedFuncs = [lambda a, b, c: numpy.bitwise_and(numpy.bitwise_xor(a, b), c)]
+fusedFuncs = [lambda a, b, c: numpy.logical_and(numpy.logical_xor(a, b), c)]
 fusedFuncNames = ["xorAndFused"]
 fusedFuncs = zip(fusedFuncs, fusedFuncNames)
 @pytest.mark.parametrize("tensor", FROSTTTensors.getTensors())
@@ -162,7 +162,7 @@ def bench_pydata_frostt_fused_ufunc_sparse(tacoBench, tensor, func):
     tacoBench(bench, extra_info)
 
 # Run benchmarks against the SuiteSparse collection.
-@pytest.mark.parametrize("ufunc", [numpy.bitwise_xor, numpy.ldexp, numpy.right_shift])
+@pytest.mark.parametrize("ufunc", [numpy.logical_xor, numpy.ldexp, numpy.right_shift])
 def bench_pydata_suitesparse_ufunc_sparse(tacoBench, ufunc):
     tensor = SuiteSparseTensor(os.getenv('SUITESPARSE_TENSOR_PATH'))
     ssTensor, other = inputCache.load(tensor, True)
