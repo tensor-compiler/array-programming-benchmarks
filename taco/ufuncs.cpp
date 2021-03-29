@@ -201,7 +201,7 @@ static void bench_ufunc_fused(benchmark::State& state, const Format& f) {
 // time from caching these inputs.
 struct UfuncInputCache {
   template<typename U>
-  std::pair<taco::Tensor<int64_t>, taco::Tensor<int64_t>> getUfuncInput(std::string path, U format, bool countNNZ = false) {
+  std::pair<taco::Tensor<int64_t>, taco::Tensor<int64_t>> getUfuncInput(std::string path, U format, bool countNNZ = false, bool includeThird = false) {
     // See if the paths match.
     if (this->lastPath == path) {
       // TODO (rohany): Not worrying about whether the format was the same as what was asked for.
@@ -221,6 +221,9 @@ struct UfuncInputCache {
         this->nnz++;
       }
     }
+    if (includeThird) {
+      this->thirdTensor = shiftLastMode<int64_t, int64_t>("C", this->otherTensor);
+    }
     return std::make_pair(this->inputTensor, this->otherTensor);
   }
 
@@ -229,6 +232,7 @@ struct UfuncInputCache {
 
   taco::Tensor<int64_t> inputTensor;
   taco::Tensor<int64_t> otherTensor;
+  taco::Tensor<int64_t> thirdTensor;
   int64_t nnz;
 };
 UfuncInputCache inputCache;
@@ -331,8 +335,8 @@ static void bench_frostt_ufunc_fused(benchmark::State& state, std::string tnsPat
   state.SetLabel(tensorName);
 
   Tensor<int64_t> frosttTensor, other;
-  std::tie(frosttTensor, other) = inputCache.getUfuncInput(frosttTensorPath, Sparse);
-  Tensor<int64_t> third = shiftLastMode<int64_t, int64_t>("C", other);
+  std::tie(frosttTensor, other) = inputCache.getUfuncInput(frosttTensorPath, Sparse, false /* countNNZ */, true /* includeThird */);
+  Tensor<int64_t> third = inputCache.thirdTensor;
 
   for (auto _ : state) {
     state.PauseTiming();
