@@ -94,26 +94,26 @@ struct Power {
   }
 };
 
-struct UnionRightCompAlgebra {
+struct unionRightCompAlgebra {
   IterationAlgebra operator()(const std::vector<IndexExpr>& regions) {
     return Union(regions[0], Complement(regions[1]));
   }
 };
 
-struct UnionLeftCompAlgebra {
+struct rightIncAlgebra {
   IterationAlgebra operator()(const std::vector<IndexExpr>& regions) {
-    return Union(Complement(regions[0]), regions[1]);
+    return regions[1];
   }
 };
 
 
-struct CompAlgebra {
+struct compAlgebra {
   IterationAlgebra operator()(const std::vector<IndexExpr>& regions) {
     return Complement(regions[0]);
   }
 };
 
-struct NestedXorAlgebra {
+struct nestedXorAlgebra {
   IterationAlgebra operator()(const std::vector<IndexExpr> & regions) {
     IterationAlgebra intersect2 = Union(Intersect(regions[2], Union(regions[0], regions[1])), Intersect(regions[0], Union(regions[2], regions[1])));
     IterationAlgebra intersect3 = Intersect(Intersect(regions[0], regions[1]), regions[2]);
@@ -214,7 +214,9 @@ Func rightShift("right_shift", RightShift(), leftIncAlgebra());
 Func xorOp("logical_xor", GeneralAdd(), xorAlgebra());
 Func andOp("logical_and", GeneralAdd(), andAlgebra());
 Func orOp("logical_or", GeneralAdd(), orAlgebra());
-Func nestedXorOp("fused_xor", GeneralAdd(), NestedXorAlgebra());
+Func nestedXorOp("fused_xor", GeneralAdd(), nestedXorAlgebra());
+Func pow0Comp("power_0compression", Power(), unionRightCompAlgebra());
+Func pow1Comp("power_1compression", Power(), rightIncAlgebra());
 static void bench_ufunc_fused(benchmark::State& state, const Format& f) {
   int dim = state.range(0);
   auto sparsity = 0.01;
@@ -233,11 +235,7 @@ static void bench_ufunc_fused(benchmark::State& state, const Format& f) {
 
     result.compute();
     result = result.removeExplicitZeros(result.getFormat());
-    int nnz = 0;
-    for (auto& it : iterate<int64_t>(result)) {
-      nnz++;
-    }
-    std::cout << "Result NNZ = " << nnz << std::endl;
+
   }
 }
  TACO_BENCH_ARGS(bench_ufunc_fused, csr, CSR)
@@ -333,6 +331,12 @@ static void bench_frostt_ufunc(benchmark::State& state, std::string tnsPath, Fun
     result.compute();
 
     state.PauseTiming();
+//    int nnz = 0;
+//    for (auto& it : iterate<int64_t>(result)) {
+//      nnz++;
+//    }
+//    std::cout << "Result NNZ = " << nnz << std::endl;
+
     if (auto validationPath = getValidationOutputPath(); validationPath != "") {
       auto key = ufuncBenchKey(tensorName, op.getName());
       auto outpath = validationPath + key + ".tns";
@@ -364,6 +368,8 @@ static void bench_frostt_ufunc(benchmark::State& state, std::string tnsPath, Fun
   TACO_BENCH_ARGS(bench_frostt_ufunc, name/xor, path, xorOp); \
   TACO_BENCH_ARGS(bench_frostt_ufunc, name/ldExp, path, ldExp); \
   TACO_BENCH_ARGS(bench_frostt_ufunc, name/rightShift, path, rightShift); \
+  //TACO_BENCH_ARGS(bench_frostt_ufunc, name/pow0Comp, path, pow0Comp); \
+  //TACO_BENCH_ARGS(bench_frostt_ufunc, name/pow1Comp, path, pow1Comp); \
 
 FOREACH_FROSTT_TENSOR(DECLARE_FROSTT_UFUNC_BENCH)
 
