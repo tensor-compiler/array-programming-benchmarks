@@ -479,7 +479,7 @@ static void bench_frostt_ufunc_fused(benchmark::State& state, std::string tnsPat
 #define DECLARE_FROSTT_FUSED_UFUNC_BENCH(name, path) \
   TACO_BENCH_ARGS(bench_frostt_ufunc_fused, name/xorAndFused, path, XOR_AND); \
   TACO_BENCH_ARGS(bench_frostt_ufunc_fused, name/xorOrFused, path, XOR_OR); \
-//  TACO_BENCH_ARGS(bench_frostt_ufunc_fused, name/xorXorFused, path, XOR_XOR); \
+  TACO_BENCH_ARGS(bench_frostt_ufunc_fused, name/xorXorFused, path, XOR_XOR); \
 
 FOREACH_FROSTT_TENSOR(DECLARE_FROSTT_FUSED_UFUNC_BENCH)
 
