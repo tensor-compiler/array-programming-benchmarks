@@ -106,12 +106,6 @@ struct UnionLeftCompAlgebra {
   }
 };
 
-// Logical Not Op and Algebra
-struct Power {
-  ir::Expr operator()(const std::vector<ir::Expr> &v) {
-    return ir::Literal(1, v.get)
-  }
-};
 
 struct CompAlgebra {
   IterationAlgebra operator()(const std::vector<IndexExpr>& regions) {
@@ -119,6 +113,14 @@ struct CompAlgebra {
   }
 };
 
+struct NestedXorAlgebra {
+  IterationAlgebra operator()(const std::vector<IndexExpr> & regions) {
+    IterationAlgebra intersect2 = Union(Intersect(regions[2], Union(regions[0], regions[1])), Intersect(regions[0], Union(regions[2], regions[1])));
+    IterationAlgebra intersect3 = Intersect(Intersect(regions[0], regions[1]), regions[2]);
+    IterationAlgebra unionComplement = Complement(Union(Union(regions[0], regions[1]), regions[2]));
+    return Union(Complement(Union(intersect2, unionComplement)), intersect3);
+  }
+};
 
 template <int I, class...Ts>
 decltype(auto) get(Ts&&... ts) {
@@ -212,28 +214,34 @@ Func rightShift("right_shift", RightShift(), leftIncAlgebra());
 Func xorOp("logical_xor", GeneralAdd(), xorAlgebra());
 Func andOp("logical_and", GeneralAdd(), andAlgebra());
 Func orOp("logical_or", GeneralAdd(), orAlgebra());
-
+Func nestedXorOp("fused_xor", GeneralAdd(), NestedXorAlgebra());
 static void bench_ufunc_fused(benchmark::State& state, const Format& f) {
   int dim = state.range(0);
   auto sparsity = 0.01;
-  Tensor<double> matrix = loadRandomTensor("A", {dim, dim}, sparsity, f);
-  Tensor<double> matrix1 = loadRandomTensor("B", {dim, dim}, sparsity, f, 1 /* variant */);
-  Tensor<double> matrix2 = loadRandomTensor("C", {dim, dim}, sparsity, f, 2 /* variant */);
+  Tensor<int64_t> matrix = castToType<int64_t>("A", loadRandomTensor("A", {dim, dim}, sparsity, f));
+  Tensor<int64_t> matrix1 = castToType<int64_t>("B", loadRandomTensor("B", {dim, dim}, sparsity, f, 1 /* variant */));
+  Tensor<int64_t> matrix2 = castToType<int64_t>("C", loadRandomTensor("C", {dim, dim}, sparsity, f, 2 /* variant */));
 
   for (auto _ : state) {
     state.PauseTiming();
-    Tensor<double> result("result", {dim, dim}, f);
+    Tensor<int64_t> result("result", {dim, dim}, f);
     IndexVar i("i"), j("j");
-    result(i, j) = andOp(xorOp(matrix(i, j), matrix1(i, j)), matrix2(i, j));
+    result(i, j) = nestedXorOp(matrix(i, j), matrix1(i, j), matrix2(i, j));
     result.setAssembleWhileCompute(true);
     result.compile();
     state.ResumeTiming();
 
     result.compute();
+    result = result.removeExplicitZeros(result.getFormat());
+    int nnz = 0;
+    for (auto& it : iterate<int64_t>(result)) {
+      nnz++;
+    }
+    std::cout << "Result NNZ = " << nnz << std::endl;
   }
 }
-// TACO_BENCH_ARGS(bench_ufunc_fused, csr, CSR)
-//   ->ArgsProduct({{5000, 10000, 20000}});
+ TACO_BENCH_ARGS(bench_ufunc_fused, csr, CSR)
+   ->ArgsProduct({{5000, 10000, 20000}});
 
 // UfuncInputCache is a cache for the input to ufunc benchmarks. These benchmarks
 // operate on a tensor loaded from disk and the same tensor shifted slightly. Since
@@ -362,6 +370,7 @@ FOREACH_FROSTT_TENSOR(DECLARE_FROSTT_UFUNC_BENCH)
 enum FusedUfuncOp {
   XOR_AND = 1,
   XOR_OR = 2,
+  XOR_XOR = 3,
 };
 
 static void bench_frostt_ufunc_fused(benchmark::State& state, std::string tnsPath, FusedUfuncOp op) {
@@ -397,6 +406,10 @@ static void bench_frostt_ufunc_fused(benchmark::State& state, std::string tnsPat
             result(i, j, k) = orOp(xorOp(frosttTensor(i, j, k), other(i, j, k)), third(i, j, k));
             break;
           }
+          case XOR_XOR: {
+            result(i, j, k) = nestedXorOp(frosttTensor(i, j, k), other(i, j, k), third(i, j, k));
+            break;
+          }
           default:
             state.SkipWithError("invalid fused op");
             return;
@@ -412,6 +425,10 @@ static void bench_frostt_ufunc_fused(benchmark::State& state, std::string tnsPat
           }
           case XOR_OR: {
             result(i, j, k, l) = orOp(xorOp(frosttTensor(i, j, k, l), other(i, j, k, l)), third(i, j, k, l));
+            break;
+          }
+          case XOR_XOR: {
+            result(i, j, k, l) = nestedXorOp(frosttTensor(i, j, k, l), other(i, j, k, l), third(i, j, k, l));
             break;
           }
           default:
@@ -431,6 +448,10 @@ static void bench_frostt_ufunc_fused(benchmark::State& state, std::string tnsPat
             result(i, j, k, l, m) = orOp(xorOp(frosttTensor(i, j, k, l, m), other(i, j, k, l, m)), third(i, j, k, l, m));
             break;
           }
+          case XOR_XOR: {
+            result(i, j, k, l, m) = nestedXorOp(frosttTensor(i, j, k, l, m), other(i, j, k, l, m), third(i, j, k, l, m));
+            break;
+          }
           default:
             state.SkipWithError("invalid fused op");
             return;
@@ -445,12 +466,14 @@ static void bench_frostt_ufunc_fused(benchmark::State& state, std::string tnsPat
     state.ResumeTiming();
 
     result.compute();
+    
   }
 }
 
 #define DECLARE_FROSTT_FUSED_UFUNC_BENCH(name, path) \
   TACO_BENCH_ARGS(bench_frostt_ufunc_fused, name/xorAndFused, path, XOR_AND); \
   TACO_BENCH_ARGS(bench_frostt_ufunc_fused, name/xorOrFused, path, XOR_OR); \
+//  TACO_BENCH_ARGS(bench_frostt_ufunc_fused, name/xorXorFused, path, XOR_XOR); \
 
 FOREACH_FROSTT_TENSOR(DECLARE_FROSTT_FUSED_UFUNC_BENCH)
 
