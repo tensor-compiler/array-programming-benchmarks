@@ -6,7 +6,6 @@ numba==0.53.0
 numpy==1.19.5
 opencv-python==4.5.1.48
 packaging==20.9
-pkg-resources==0.0.0
 pluggy==0.13.1
 py==1.10.0
 py-cpuinfo==7.0.0

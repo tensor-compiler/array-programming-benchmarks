@@ -13,6 +13,7 @@
 
 using namespace taco;
 
+// XOR Op and Algebra
 struct GeneralAdd {
   ir::Expr operator()(const std::vector<ir::Expr> &v) {
     taco_iassert(v.size() >= 1) << "Add operator needs at least one operand";
@@ -45,6 +46,7 @@ struct orAlgebra {
   }
 };
 
+// Right shift op and Algebra
 struct RightShift{
   ir::Expr operator()(const std::vector<ir::Expr> &v) {
     if (v.size() == 1)
@@ -64,6 +66,7 @@ struct leftIncAlgebra {
   }
 };
 
+// LdExp Op (algbra same as right shift)
 struct Ldexp {
   ir::Expr operator()(const std::vector<ir::Expr> &v) {
     if (v.size() == 1)
@@ -76,6 +79,46 @@ struct Ldexp {
     return shift;
   }
 };
+
+// Power op and algebra (X U Y^(c) if 1 compressed out, X^(c) U Y if 0 compressed out)
+struct Power {
+  ir::Expr operator()(const std::vector<ir::Expr> &v) {
+    if (v.size() == 1)
+      return v[0];
+
+    ir::Expr pow = ir::BinOp::make(v[0], v[1], "pow(", ", ", ")");
+    for (size_t idx = 2; idx < v.size(); ++idx) {
+      pow = ir::BinOp::make(pow, v[idx], "pow(", ", ", ")");
+    }
+    return pow;
+  }
+};
+
+struct UnionRightCompAlgebra {
+  IterationAlgebra operator()(const std::vector<IndexExpr>& regions) {
+    return Union(regions[0], Complement(regions[1]));
+  }
+};
+
+struct UnionLeftCompAlgebra {
+  IterationAlgebra operator()(const std::vector<IndexExpr>& regions) {
+    return Union(Complement(regions[0]), regions[1]);
+  }
+};
+
+// Logical Not Op and Algebra
+struct Power {
+  ir::Expr operator()(const std::vector<ir::Expr> &v) {
+    return ir::Literal(1, v.get)
+  }
+};
+
+struct CompAlgebra {
+  IterationAlgebra operator()(const std::vector<IndexExpr>& regions) {
+    return Complement(regions[0]);
+  }
+};
+
 
 template <int I, class...Ts>
 decltype(auto) get(Ts&&... ts) {
@@ -136,9 +179,6 @@ static void bench_ufunc_sparse(benchmark::State& state, ExtraArgs&&... extra_arg
   A.pack(); B.pack();
   
   // Output tensors to file
-  // FIXME (owhsu): Why for dim == 10, does the CSR dense mode repeat indices?
-  //                This is causing a problem for the format of csr_matrix(...) in pytest
-  //                See <repo>/data/* for examples
   printTensor(A, "./data", __FUNCTION__ , dim, extra_args...);
   printTensor(B, "./data", __FUNCTION__ , dim, extra_args...);
 
