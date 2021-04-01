@@ -4,6 +4,8 @@ import sparse
 import os
 import glob
 import numpy
+import cv2
+import matplotlib.pyplot as plt
 
 # Get the path to the directory holding random tensors. Error out
 # if this isn't set.
@@ -52,6 +54,9 @@ class TnsFileDumper:
                 strings = coords + [str(line[-1])]
                 f.write(" ".join(strings))
                 f.write("\n")
+            shape_strings = [str(elem) for elem in shape] + ['0']
+            f.write(" ".join(shape_strings))
+            f.write("\n")
 
 # ScipySparseTensorLoader loads a sparse tensor from a file into a
 # scipy.sparse CSR matrix.
@@ -284,3 +289,145 @@ def safeCastPydataTensorToInts(tensor):
         else:
             data[i] = int(tensor.data[i])
     return sparse.COO(tensor.coords, data, tensor.shape)
+
+
+###########################
+# Imaging Benchmark Utils #
+###########################
+
+# load_image loads an image with the correct color format for the numpy/image.py 
+# benchmark
+def load_image(image_folder, num):
+    if image_folder == 'no':
+        image_folder = "./data/image/no"
+    else:
+        image_folder = "./data/image/yes"
+
+    name = "image" + str(num) + '.'  
+    file_names = [fn for fn in os.listdir(image_folder)
+                  if fn.startswith(name)]
+    path = os.path.join(image_folder, file_names[0])
+    img = cv2.imread(path)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    return img
+
+# plot_image plots the given original, binned, xor, and sparse xor images
+# for the numpy/image.py. Used for debugging only with the --plot flag
+def plot_image(img, img1, img2, xor_img, sparse_xor_img, t1, t2, window=None):
+    f, ax = plt.subplots(2, 3)
+    ax[0, 0].imshow(img1, 'gray')
+    ax[0, 0].title.set_text("Binned Image 1. t1 = " + str(t1))
+
+    ax[0, 1].imshow(img2, 'gray')
+    ax[0, 1].title.set_text("Binned Image 2. t2 = " + str(t2))
+
+    ax[1, 0].imshow(img, 'gray')
+    ax[1, 0].title.set_text("Saturdated Image")
+
+    ax[1, 1].imshow(xor_img, 'gray')
+    ax[1, 1].title.set_text("XOR Image")
+
+    ax[1, 2].imshow(sparse_xor_img, 'gray')
+    ax[1, 2].title.set_text("Sparse XOR Image")
+
+    if window is not None:
+        ax[0, 2].imshow(window, 'gray')
+        ax[0, 2].title.set_text("Fused Window Image")
+
+    f.tight_layout()
+    plt.show()
+
+# thresh thresholdes the given image by a threshold
+def thresh(images, t=85):
+    if len(images.shape) < 3:
+        images = numpy.expand_dims(images, axis=0)
+    thresh_imgs = []
+    for i in range(images.shape[0]):
+        img = images[i]
+        ret, thresh_img = cv2.threshold(img, t, 255, cv2.THRESH_BINARY)
+        thresh_imgs.append(thresh_img)
+
+    thresh_imgs = numpy.stack(thresh_imgs, axis=0)        
+    return thresh_imgs 
+
+# construct_image_tensor_key constructs a unique key that represents
+# an image tensor parameterized by the image number and threshold.
+# The key itself is formatted by the image number, followed by the
+# threshold. For example, image1.* image with threshold of 0.5
+# would have a key of image1-0.05.tns.
+def construct_image_tensor_key(num, pt, variant):
+    path = TENSOR_PATH
+    name = "image" + str(num)
+    if variant is None:
+        key = "{}-{}.tns".format(dims, pt)
+    else:
+        key = "{}-{}-{}.tns".format(name, pt, variant)
+    return os.path.join(path, "image", "tensors", key)
+
+# ImagePydataSparseTensorLoader is the same as RandomPydataSparseTensorLoader
+# but for images loaded from memory and converted to sparse.COO tensors
+class ImagePydataSparseTensorLoader:
+    def __init__(self):
+        self.loader = PydataSparseTensorLoader()
+        self.img = dict()
+        self.max = dict()
+        self.shape = dict()
+
+    def dense_image(self, num, pt, variant=None, path='no'):
+        # Used for verification and baseline only.
+        # Do not need to write to output file 
+        if num not in self.img.keys():
+            self.img[num] = load_image(path, num)
+            self.max[num] = numpy.max(self.img[num])
+
+        img = self.img[num]
+        t = self.max[num]*pt
+        bin_img = thresh(img, t)[0]
+        self.shape[num] = bin_img.shape 
+        return bin_img 
+
+    def sparse_image(self, num, pt, variant=None, path='no'):
+        key = construct_image_tensor_key(num, pt, variant)
+        # If an image with these properties exists already, then load it.
+        if os.path.exists(key):
+            result = self.loader.load(key)
+            self.shape[num] = result.shape
+            return result
+        else:
+            # Otherwise, we must create load the image and preprocess it with the desired properties.
+            # dump it to the output file, then return it. 
+            bin_img = self.dense_image(num, pt, variant, path)
+            result = sparse.COO.from_numpy(bin_img)
+            dok = sparse.DOK(result)
+            TnsFileDumper().dump_dict_to_file(self.shape[num], dok.data, key)
+            return result
+
+    # sparse_window and dense_window must be called after the image calls
+    def sparse_window(self, num, variant=3):
+        path = TENSOR_PATH
+        key = "image"+str(num) + "-" + str(variant) + ".tns"
+        key = os.path.join(path, "image", "tensors", key)
+
+        shape = self.shape[num]
+
+        if os.path.exists(key):
+            return self.loader.load(key)
+        else:
+            result_np = self.dense_window(num)
+            result = sparse.COO.from_numpy(result_np)
+            dok = sparse.DOK(result)
+            TnsFileDumper().dump_dict_to_file(shape, dok.data, key)
+            return result
+
+    def dense_window(self, num):
+        shape = self.shape[num]
+        result_np = numpy.zeros(shape)
+        m0 = int(shape[0] / 2)
+        m1 = int(shape[1] / 2)
+        dm0 = int(0.2*m0)
+        dm1 = int(0.2*m1)
+        result_np[m0+dm0:m0+3*dm0, m1+dm1:m1+3*dm1] = 1
+        result_np[m0-3*dm0:m0-dm0, m1+dm1:m1+3*dm1] = 1
+        result_np[m0-3*dm0:m0-dm0, m1-3*dm1:m1-dm1] = 1
+        result_np[m0+dm0:m0+3*dm0, m1-3*dm1:m1-dm1] = 1
+        return result_np 
