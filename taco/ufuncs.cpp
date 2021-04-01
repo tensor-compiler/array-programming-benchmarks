@@ -96,13 +96,13 @@ struct Power {
 
 struct unionRightCompAlgebra {
   IterationAlgebra operator()(const std::vector<IndexExpr>& regions) {
-    return Union(regions[0], Complement(regions[1]));
+    return Union(Intersect(regions[0], regions[1]), Complement(regions[1]));
   }
 };
 
 struct rightIncAlgebra {
   IterationAlgebra operator()(const std::vector<IndexExpr>& regions) {
-    return regions[1];
+    return Union(Intersect(regions[0], regions[1]), regions[1]);
   }
 };
 
@@ -229,10 +229,10 @@ static void bench_ufunc_fused(benchmark::State& state, const Format& f) {
     Tensor<int64_t> result("result", {dim, dim}, f);
     IndexVar i("i"), j("j");
     result(i, j) = nestedXorOp(matrix(i, j), matrix1(i, j), matrix2(i, j));
-    result.setAssembleWhileCompute(true);
+    result.setAssembleWhileCompute(false);
     result.compile();
     state.ResumeTiming();
-
+    result.assemble();
     result.compute();
     result = result.removeExplicitZeros(result.getFormat());
 
@@ -287,7 +287,7 @@ std::string ufuncBenchKey(std::string tensorName, std::string funcName) {
   return tensorName + "-" + funcName + "-taco";
 }
 
-static void bench_frostt_ufunc(benchmark::State& state, std::string tnsPath, Func op) {
+static void bench_frostt_ufunc(benchmark::State& state, std::string tnsPath, Func op, int fill_value = 0) {
   auto frosttTensorPath = getTacoTensorPath();
   frosttTensorPath += "FROSTT/";
   frosttTensorPath += tnsPath;
@@ -303,7 +303,7 @@ static void bench_frostt_ufunc(benchmark::State& state, std::string tnsPath, Fun
 
   for (auto _ : state) {
     state.PauseTiming();
-    Tensor<int64_t> result("result", frosttTensor.getDimensions(), frosttTensor.getFormat());
+    Tensor<int64_t> result("result", frosttTensor.getDimensions(), frosttTensor.getFormat(), fill_value);
     result.setAssembleWhileCompute(true);
     switch (frosttTensor.getOrder()) {
       case 3: {
@@ -331,11 +331,6 @@ static void bench_frostt_ufunc(benchmark::State& state, std::string tnsPath, Fun
     result.compute();
 
     state.PauseTiming();
-//    int nnz = 0;
-//    for (auto& it : iterate<int64_t>(result)) {
-//      nnz++;
-//    }
-//    std::cout << "Result NNZ = " << nnz << std::endl;
 
     if (auto validationPath = getValidationOutputPath(); validationPath != "") {
       auto key = ufuncBenchKey(tensorName, op.getName());
@@ -368,8 +363,8 @@ static void bench_frostt_ufunc(benchmark::State& state, std::string tnsPath, Fun
   TACO_BENCH_ARGS(bench_frostt_ufunc, name/xor, path, xorOp); \
   TACO_BENCH_ARGS(bench_frostt_ufunc, name/ldExp, path, ldExp); \
   TACO_BENCH_ARGS(bench_frostt_ufunc, name/rightShift, path, rightShift); \
-  //TACO_BENCH_ARGS(bench_frostt_ufunc, name/pow0Comp, path, pow0Comp); \
-  //TACO_BENCH_ARGS(bench_frostt_ufunc, name/pow1Comp, path, pow1Comp); \
+  TACO_BENCH_ARGS(bench_frostt_ufunc, name/pow1Comp, path, pow1Comp, 1);\
+  //TACO_BENCH_ARGS(bench_frostt_ufunc, name/pow0Comp, path, pow0Comp, 0);     \
 
 FOREACH_FROSTT_TENSOR(DECLARE_FROSTT_UFUNC_BENCH)
 

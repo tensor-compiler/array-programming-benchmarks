@@ -61,3 +61,27 @@ taco::TensorBase loadRandomTensor(std::string name, std::vector<int> dims, float
   tensor.setName(name);
   return tensor;
 }
+
+std::string constructImageTensorKey(int num, int variant) {
+  auto path = getTacoTensorPath();
+  std::stringstream result;
+  result << path;
+  if (path[path.size() - 1] != '/') {
+    result << "/";
+  }
+  result << "image/";
+  if (variant == 0) {
+    result << "image" << num << ".tns";
+  } else {
+    result << "image" << num << "-" << variant << ".tns";
+  }
+  return result.str();
+}
+
+taco::TensorBase loadImageTensor(std::string name, int num, taco::Format format, int variant) {
+  // For now, just say that the python code must generate the random
+  // tensor before use.
+  auto tensor = taco::read(constructImageTensorKey(num, variant), format, true);
+  tensor.setName(name);
+  return tensor;
+}

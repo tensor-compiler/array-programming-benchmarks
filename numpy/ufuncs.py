@@ -42,7 +42,6 @@ def bench_pydata_ufunc_fused(tacoBench, dim):
     matrix2 = safeCastPydataTensorToInts(loader.random((dim, dim), 0.01, variant=2))
     def bench():
         result = numpy.logical_xor(numpy.logical_xor(matrix, matrix1), matrix2)
-        #print("nnz = ", result.nnz)
         return result
     tacoBench(bench)
 
@@ -129,7 +128,7 @@ inputCache = UfuncInputCache()
 # Run benchmarks against the FROSTT collection.
 FROSTTTensors = TensorCollectionFROSTT()
 @pytest.mark.parametrize("tensor", FROSTTTensors.getTensors())
-@pytest.mark.parametrize("ufunc", [numpy.logical_xor, numpy.ldexp, numpy.right_shift])
+@pytest.mark.parametrize("ufunc", [numpy.power, numpy.logical_xor, numpy.ldexp, numpy.right_shift])
 def bench_pydata_frostt_ufunc_sparse(tacoBench, tensor, ufunc):
     frTensor, other = inputCache.load(tensor, False)
     def bench():
