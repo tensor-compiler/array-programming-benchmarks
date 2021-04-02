@@ -34,14 +34,14 @@ def bench_pydata_ufunc_sparse(tacoBench, dim, ufunc):
         C = ufunc(A, B)
     tacoBench(bench)
 
-@pytest.mark.parametrize("dim", [5000, 10000, 20000])
+@pytest.mark.parametrize("dim", [1000, 2500, 5000, 10000, 20000, 40000])
 def bench_pydata_ufunc_fused(tacoBench, dim):
     loader = RandomPydataSparseTensorLoader()
     matrix = safeCastPydataTensorToInts(loader.random((dim, dim), 0.01))
     matrix1 = safeCastPydataTensorToInts(loader.random((dim, dim), 0.01, variant=1))
     matrix2 = safeCastPydataTensorToInts(loader.random((dim, dim), 0.01, variant=2))
     def bench():
-        result = numpy.logical_xor(numpy.logical_xor(matrix, matrix1), matrix2)
+        result = numpy.logical_and(numpy.logical_xor(matrix, matrix1), matrix2)
         return result
     tacoBench(bench)
 
@@ -153,7 +153,7 @@ fusedFuncs = [
 fusedFuncNames = [
         "xorAndFused", 
         "xorOrFused",
-        #"xorXorFused", 
+        "xorXorFused", 
 ]
 fusedFuncs = zip(fusedFuncs, fusedFuncNames)
 @pytest.mark.parametrize("tensor", FROSTTTensors.getTensors())
@@ -163,7 +163,6 @@ def bench_pydata_frostt_fused_ufunc_sparse(tacoBench, tensor, func):
     third = PydataTensorShifter().shiftLastMode(other)
     def bench():
         c = func[0](frTensor, other, third)
-        print("nnz = ", c.nnz)
         return c
     extra_info = dict()
     extra_info['tensor_str'] = str(tensor)

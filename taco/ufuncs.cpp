@@ -228,18 +228,16 @@ static void bench_ufunc_fused(benchmark::State& state, const Format& f) {
     state.PauseTiming();
     Tensor<int64_t> result("result", {dim, dim}, f);
     IndexVar i("i"), j("j");
-    result(i, j) = nestedXorOp(matrix(i, j), matrix1(i, j), matrix2(i, j));
-    result.setAssembleWhileCompute(false);
+    result(i, j) = andOp(xorOp(matrix(i, j), matrix1(i, j)), matrix2(i, j));
+    result.setAssembleWhileCompute(true);
     result.compile();
     state.ResumeTiming();
     result.assemble();
     result.compute();
-    result = result.removeExplicitZeros(result.getFormat());
-
   }
 }
  TACO_BENCH_ARGS(bench_ufunc_fused, csr, CSR)
-   ->ArgsProduct({{5000, 10000, 20000}});
+   ->ArgsProduct({{1000, 2500, 5000, 10000, 20000, 40000}});
 
 // UfuncInputCache is a cache for the input to ufunc benchmarks. These benchmarks
 // operate on a tensor loaded from disk and the same tensor shifted slightly. Since
@@ -467,7 +465,6 @@ static void bench_frostt_ufunc_fused(benchmark::State& state, std::string tnsPat
     state.ResumeTiming();
 
     result.compute();
-    
   }
 }
 
