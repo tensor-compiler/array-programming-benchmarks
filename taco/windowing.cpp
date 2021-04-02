@@ -26,7 +26,6 @@ enum WindowConfig {
   __func__(Constant, Constant) \
   __func__(ConstantFraction, ConstantFraction) \
   __func__(AlmostWhole, AlmostWhole) \
-  __func__(Whole, Whole) \
   __func__(NoWindowing, NoWindowing)
 
 Tensor<double> windowedTensorOp(Tensor<double> input1, Tensor<double> input2, int dim, WindowConfig config, float sparsity) {
