@@ -170,7 +170,7 @@ def bench_pydata_frostt_fused_ufunc_sparse(tacoBench, tensor, func):
     tacoBench(bench, extra_info)
 
 # Run benchmarks against the SuiteSparse collection.
-@pytest.mark.parametrize("ufunc", [numpy.logical_xor, numpy.ldexp, numpy.right_shift])
+@pytest.mark.parametrize("ufunc", [numpy.power, numpy.logical_xor, numpy.ldexp, numpy.right_shift])
 def bench_pydata_suitesparse_ufunc_sparse(tacoBench, ufunc):
     tensor = SuiteSparseTensor(os.getenv('SUITESPARSE_TENSOR_PATH'))
     ssTensor, other = inputCache.load(tensor, True)
