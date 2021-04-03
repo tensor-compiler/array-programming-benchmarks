@@ -311,32 +311,6 @@ def load_image(image_folder, num):
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     return img
 
-# plot_image plots the given original, binned, xor, and sparse xor images
-# for the numpy/image.py. Used for debugging only with the --plot flag
-def plot_image(img, img1, img2, xor_img, sparse_xor_img, t1, t2, window=None):
-    f, ax = plt.subplots(2, 3)
-    ax[0, 0].imshow(img1, 'gray')
-    ax[0, 0].title.set_text("Binned Image 1. t1 = " + str(t1))
-
-    ax[0, 1].imshow(img2, 'gray')
-    ax[0, 1].title.set_text("Binned Image 2. t2 = " + str(t2))
-
-    ax[1, 0].imshow(img, 'gray')
-    ax[1, 0].title.set_text("Saturdated Image")
-
-    ax[1, 1].imshow(xor_img, 'gray')
-    ax[1, 1].title.set_text("XOR Image")
-
-    ax[1, 2].imshow(sparse_xor_img, 'gray')
-    ax[1, 2].title.set_text("Sparse XOR Image")
-
-    if window is not None:
-        ax[0, 2].imshow(window, 'gray')
-        ax[0, 2].title.set_text("Fused Window Image")
-
-    f.tight_layout()
-    plt.show()
-
 # thresh thresholdes the given image by a threshold
 def thresh(images, t=85):
     if len(images.shape) < 3:
