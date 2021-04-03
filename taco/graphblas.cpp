@@ -12,117 +12,16 @@ extern "C" {
 #include "GraphBLAS.h"
 }
 
+#include <fstream>
 #include <vector>
 #include <limits>
 #include <cmath>
+#include <map>
 #include <omp.h>
 
 using namespace taco;
 
-ir::Expr addImpl(const std::vector<ir::Expr>& v) {
-  return ir::Add::make(v[0], v[1]);
-}
-Func AddOp("add", addImpl, {Annihilator(std::numeric_limits<double>::infinity()), Identity(0), Commutative(), Associative()});
-
-ir::Expr minImpl(const std::vector<ir::Expr>& v) {
-  return ir::Min::make(v[0], v[1]);
-}
-Func MinOp("min", minImpl, {Identity(std::numeric_limits<double>::infinity()), Commutative(), Associative()});
-
-ir::Expr maskImpl(const std::vector<ir::Expr>& v) {
-  return v[0];
-}
-struct MaskAlgebra {
-  IterationAlgebra operator()(const std::vector<IndexExpr>& r) {
-    return Intersect(r[0], Complement(r[1]));
-  }
-};
-Func MaskOp("mask", maskImpl, MaskAlgebra());
-
-//static void bench_mxv_taco(benchmark::State& state) {
-//  Format dv({Dense});
-//
-//  Tensor<double> T = read("/data/scratch/s3chou/formats-bench/data/webbase_1M.mtx", CSR);
-//  Tensor<double> A(T.getDimensions(), CSR, std::numeric_limits<double>::infinity());
-//  for (const auto& c : T) {
-//    A.insert(c.first.toVector(), c.second);
-//  }
-//  A.pack();
-//
-//  // TODO: Only run for square matrices
-//
-//  Tensor<double> x({A.getDimension(1)}, dv, std::numeric_limits<double>::infinity());
-//  x.insert({0}, 0.0);
-//  x.pack();
-//
-//  IndexVar i, j;
-//
-//  taco_set_num_threads(12);
-//  for (auto _ : state) {
-//    state.PauseTiming();
-//
-//    Tensor<double> y({A.getDimension(0)}, dv, std::numeric_limits<double>::infinity());
-//    y(i) = Reduction(MinOp(), j, AddOp(A(i,j), x(j)));
-//    //y(i) = MinOp(Reduction(MinOp(), j, AddOp(A(i,j), x(j))), x(i));
-//    //y(i) = MaskOp(Reduction(MinOp(), j, AddOp(A(i,j), x(j))), x(i));
-//    //y(i) = MinOp(MaskOp(Reduction(MinOp(), j, AddOp(A(i,j), x(j))), x(i)), x(i));
-//    //y(i) = MaskOp(MinOp(Reduction(MinOp(), j, AddOp(A(i,j), x(j))), x(i)), x(i));
-//    //y(i) = MinOp(FilterOp(x(i)) * Reduction(MinOp(), j, AddOp(A(i,j), x(j))), x(i));
-//
-//    y.compile();
-//    y.assemble();
-//
-//    state.ResumeTiming();
-//
-//    y.compute();
-//  }
-//  taco_set_num_threads(1);
-//}
-//TACO_BENCH(bench_mxv_taco);
-
-//static void bench_mxv_suitesparse(benchmark::State& state) {
-//  GrB_init(GrB_BLOCKING);
-//  GxB_Global_Option_set(GxB_HYPER_SWITCH, GxB_NEVER_HYPER);
-//  GxB_Global_Option_set(GxB_FORMAT, GxB_BY_ROW);
-//
-//  int nthreads_max = 12;
-//  GxB_Global_Option_set(GxB_NTHREADS, nthreads_max);
-//
-//  Tensor<double> T = read("/data/scratch/s3chou/formats-bench/data/webbase_1M.mtx", CSR);
-//  GrB_Index M = T.getDimension(0);
-//  GrB_Index N = T.getDimension(1);
-//  GrB_Matrix A;
-//  GrB_Matrix_new(&A, GrB_FP64, M, N);
-//  std::vector<GrB_Index> I, J;
-//  std::vector<double> V;
-//  for (const auto& c : T) {
-//    I.push_back(c.first[0]);
-//    J.push_back(c.first[1]);
-//    V.push_back(c.second);
-//  }
-//  GrB_Matrix_build_FP64(A, I.data(), J.data(), V.data(), V.size(), GrB_PLUS_FP64);
-//  //GrB_Index nnz;
-//  //GrB_Matrix_nvals(&nnz, A);
-//  
-//  GrB_Vector x;
-//  GrB_Vector_new(&x, GrB_FP64, N);
-//  GrB_Vector_assign_FP64(x, NULL, NULL, 1, GrB_ALL, N, NULL);
-//  //GrB_Vector_setElement_FP64(
-//
-//  GrB_Vector y;
-//  GrB_Vector_new(&y, GrB_FP64, M);
-//  //GrB_Vector_assign_FP64(y, NULL, NULL, 0, GrB_ALL, M, NULL);
-//
-//  GrB_Descriptor desc;
-//  GrB_Descriptor_set (desc, GrB_OUTP, GrB_REPLACE);
-//
-//  for (auto _ : state) {
-//    GrB_mxv(y, NULL, NULL, GrB_MIN_PLUS_SEMIRING_FP64, A, x, desc);
-//    //GrB_vxm(x, NULL, NULL, GrB_MIN_PLUS_SEMIRING_FP64, x, A, desc);
-//  }
-//}
-
-taco_tensor_t* to_taco_tensor(GrB_Matrix* mat) {
+taco_tensor_t* to_csr_taco_tensor(GrB_Matrix* mat) {
   GrB_Type type;
   GrB_Index M, N, posSize, crdSize, valsSize;
   GrB_Index* pos;
@@ -145,7 +44,26 @@ taco_tensor_t* to_taco_tensor(GrB_Matrix* mat) {
   return csrt;
 }
 
-taco_tensor_t* to_taco_tensor(GrB_Vector* vec) {
+taco_tensor_t* to_bitmap_taco_tensor(GrB_Vector* vec) {
+  GrB_Type type;
+  GrB_Index N, valsSize, validSize, nvals;
+  void* vals;
+  int8_t* valid;
+  GxB_Vector_export_Bitmap(vec, &type, &N, &valid, &vals, &validSize, &valsSize, &nvals, NULL);
+
+  auto vect = new taco_tensor_t;
+  vect->dimensions = new int32_t[1];
+  vect->dimensions[0] = N;
+  vect->indices = new uint8_t**[1];
+  vect->indices[0] = new uint8_t*[1];
+
+  vect->indices[0][0] = (uint8_t*)valid;
+  vect->vals = (uint8_t*)vals;
+
+  return vect;
+}
+
+taco_tensor_t* to_dense_taco_tensor(GrB_Vector* vec) {
   GrB_Type type;
   GrB_Index N, valsSize;
   void* vals;
@@ -154,6 +72,7 @@ taco_tensor_t* to_taco_tensor(GrB_Vector* vec) {
   auto vect = new taco_tensor_t;
   vect->dimensions = new int32_t[1];
   vect->dimensions[0] = N;
+
   vect->vals = (uint8_t*)vals;
 
   return vect;
@@ -173,22 +92,27 @@ taco_tensor_t indices_to_taco_tensor(GrB_Index* indices, GrB_Index size) {
   return ind;
 }
 
-taco_tensor_t new_vec_taco_tensor(GrB_Index N) {
+taco_tensor_t new_bitmap_taco_tensor(GrB_Index N) {
   taco_tensor_t vec;
   vec.dimensions = new int32_t[1];
   vec.dimensions[0] = N;
+  vec.indices = new uint8_t**[1];
+  vec.indices[0] = new uint8_t*[1];
+
+  vec.indices[0][0] = nullptr;
   vec.vals = nullptr;
 
   return vec;
 }
 
-taco_tensor_t new_mat_taco_tensor(GrB_Index M, GrB_Index N) {
+taco_tensor_t new_csr_taco_tensor(GrB_Index M, GrB_Index N) {
   taco_tensor_t mat;
   mat.dimensions = new int32_t[2];
   mat.dimensions[0] = M;
   mat.dimensions[1] = N;
   mat.indices = new uint8_t**[2];
   mat.indices[1] = new uint8_t*[2];
+
   mat.indices[1][0] = nullptr;
   mat.indices[1][1] = nullptr;
   mat.vals = nullptr;
@@ -196,128 +120,415 @@ taco_tensor_t new_mat_taco_tensor(GrB_Index M, GrB_Index N) {
   return mat;
 }
 
-void free_mat_taco_tensor(taco_tensor_t mat) {
+void free_bitmap_taco_tensor(taco_tensor_t vec) {
+  free(vec.indices[0][0]);
+  free(vec.vals);
+}
+
+void free_csr_taco_tensor(taco_tensor_t mat) {
   free(mat.indices[1][0]);
   free(mat.indices[1][1]);
   free(mat.vals);
 }
 
-Format dv({Dense});
-int nthreads = 12;
+bool is_bitmap_vector(GrB_Vector* vec) {
+  int sparsity;
+  GxB_Vector_Option_get(*vec, GxB_SPARSITY_STATUS, &sparsity);
+  return (sparsity == GxB_BITMAP);
+}
+
+bool is_dense_vector(GrB_Vector* vec) {
+  int sparsity;
+  GxB_Vector_Option_get(*vec, GxB_SPARSITY_STATUS, &sparsity);
+  return (sparsity == GxB_FULL);
+}
+
+bool is_csr_matrix(GrB_Matrix* mat) {
+  int sparsity;
+  GxB_Format_Value fmt;
+  GxB_Matrix_Option_get(*mat, GxB_SPARSITY_STATUS, &sparsity);
+  GxB_Matrix_Option_get(*mat, GxB_FORMAT, &fmt);
+  return (sparsity == GxB_SPARSE && fmt == GxB_BY_ROW);
+}
+
+#if 0
+double compare_array(const double *x, const double *y, const size_t N) {
+  double ret = 0.0;
+  for (int i = 0; i < N; ++i) {
+    if (x[i] != 0.0) {
+      const double diff = std::abs(y[i] / x[i] - 1.0);
+      if (diff > ret) {
+        ret = diff;
+      }
+    } else if (y[i] != 0.0) {
+      return std::numeric_limits<double>::infinity();
+    }
+  }
+  return ret;
+}
+#endif
+
+struct BitmapArrays {
+  GrB_Index m;
+  int8_t* valid = nullptr;
+  double* fvals = nullptr;
+};
+
+BitmapArrays get_bitmap_arrays(const taco_tensor_t vector) {
+  BitmapArrays vec;
+
+  vec.m = vector.dimensions[0];
+  vec.valid = (int8_t*)vector.indices[0][0];
+  vec.fvals = (double*)vector.vals;
+
+  return vec;
+}
+
+double compare_double_bitmap(BitmapArrays a, BitmapArrays b) {
+  if (a.m != b.m) {
+    return std::numeric_limits<double>::infinity();
+  }
+
+  double ret = 0.0;
+  for (int i = 0 ; i < a.m; ++i) {
+    bool avalid = a.valid[i] && !std::isinf(a.fvals[i]);
+    bool bvalid = b.valid[i] && !std::isinf(b.fvals[i]);
+    if (avalid != bvalid) {
+      return std::numeric_limits<double>::infinity();
+    }
+    if (avalid) {
+      if (a.fvals[i] != 0.0) {
+        const double diff = std::abs(b.fvals[i] / a.fvals[i] - 1.0);
+        if (diff > ret) {
+          ret = diff;
+        }
+      } else if (b.fvals[i] != 0.0) {
+        return std::numeric_limits<double>::infinity();
+      }
+    }
+  }
+
+  return ret;
+}
+
+struct CSRArrays {
+  GrB_Index  m, n;
+  GrB_Index* pos   = nullptr;
+  GrB_Index* crd   = nullptr;
+  double*    fvals = nullptr;
+};
+
+CSRArrays get_csr_arrays(const taco_tensor_t matrix) {
+  CSRArrays csr;
+
+  csr.m = matrix.dimensions[0];
+  csr.n = matrix.dimensions[1];
+  csr.pos = (GrB_Index*)matrix.indices[1][0];
+  csr.crd = (GrB_Index*)matrix.indices[1][1];
+  csr.fvals = (double*)matrix.vals;
+
+  return csr;
+}
+
+double compare_double_csr(CSRArrays a, CSRArrays b) {
+  //std::cout << a.m << " " << b.m << " " << a.n << " " << b.n << std::endl;
+  if (a.m != b.m || a.n != b.n) {
+    return std::numeric_limits<double>::infinity();
+  }
+
+  double ret = 0.0;
+  for (int i = 0; i < a.m; ++i) {
+    int pA = a.pos[i];
+    int pB = b.pos[i];
+    while (pA < a.pos[i + 1] && pB < b.pos[i + 1]) {
+      while (pA < a.pos[i + 1] && std::isinf(a.fvals[pA])) pA++;
+      while (pB < b.pos[i + 1] && std::isinf(b.fvals[pB])) pB++;
+      if (pA < a.pos[i + 1] && pB < b.pos[i + 1]) {
+        //std::cout << a.crd[pA] << " " << b.crd[pB] << " " << a.fvals[pA] << " " << b.fvals[pB] << std::endl;
+        if (a.crd[pA] != b.crd[pB]) {
+          return std::numeric_limits<double>::infinity();
+        } else if (a.fvals[pA] != 0.0) {
+          const double diff = std::abs(b.fvals[pB] / a.fvals[pA] - 1.0);
+          if (diff > ret) {
+            ret = diff;
+            //std::cout << i << " " << a.crd[pA] << " " << b.crd[pB] << " " << a.fvals[pA] << " " << b.fvals[pB] << std::endl;
+          }
+        } else if (b.fvals[pB] != 0.0) {
+          return std::numeric_limits<double>::infinity();
+        }
+        pA++;
+        pB++;
+      }
+    }
+    while (pA < a.pos[i + 1] && std::isinf(a.fvals[pA])) pA++;
+    while (pB < b.pos[i + 1] && std::isinf(b.fvals[pB])) pB++;
+    if (pA != a.pos[i + 1] || pB != b.pos[i + 1]) {
+      return std::numeric_limits<double>::infinity();
+    }
+  }
+
+  return ret;
+}
+
+const int nthreads = 12;
 
 struct GraphBLASFixture {
   GraphBLASFixture() {
-    const auto path = "/data/scratch/s3chou/formats-bench/data/pwtk.mtx";
-    //const auto path = "/data/scratch/s3chou/formats-bench/data/webbase_1M.mtx";
+    //const auto path = "/data/scratch/s3chou/formats-bench/data/pwtk.mtx";
+    const auto path = "/data/scratch/s3chou/formats-bench/data/webbase_1M.mtx";
     //const auto path = "/data/scratch/s3chou/formats-bench/data/coPapersDBLP/coPapersDBLP.mtx";
-    Tensor<double> T = read(path, CSR);
+    //const auto path = "/data/scratch/changwan/florida_all/soc-LiveJournal1/soc-LiveJournal1.mtx";
+    //const auto path = "/data/scratch/changwan/florida_all/com-LiveJournal/com-LiveJournal.mtx";
+    //const auto path = "/data/scratch/changwan/florida_all/indochina-2004/indochina-2004.mtx";
 
     // TODO: Only run for square matrices
 
-    A_trop_taco = Tensor<double>(T.getDimensions(), CSR, std::numeric_limits<double>::infinity());
-
-    GrB_init(GrB_BLOCKING);
-    GxB_Global_Option_set(GxB_HYPER_SWITCH, GxB_NEVER_HYPER);
+    //double bsw[GxB_NBITMAP_SWITCH] = {0};
+    //GrB_init(GrB_BLOCKING);
+    GrB_init(GrB_NONBLOCKING);
+    //GxB_Global_Option_set(GxB_HYPER_SWITCH, 1.0);
+    //GxB_Global_Option_set(GxB_HYPER_SWITCH, GxB_NEVER_HYPER);
     GxB_Global_Option_set(GxB_FORMAT, GxB_BY_ROW);
     GxB_Global_Option_set(GxB_NTHREADS, nthreads);
-  
-    GrB_Index M = T.getDimension(0);
-    GrB_Index N = T.getDimension(1);
-    GrB_Matrix_new(&A_trop_gb, GrB_FP64, M, N);
+    //GxB_Global_Option_set(GxB_BITMAP_SWITCH, bsw);
+    //GxB_Global_Option_set(GxB_BURBLE, 1);
 
-    std::vector<GrB_Index> I, J;
-    std::vector<double> V;
-    for (const auto& c : T) {
-      I.push_back(c.first[0]);
-      J.push_back(c.first[1]);
-      V.push_back(c.second);
-      //A_trop_taco.insert(c.first.toVector(), c.second);
+    read_matrix(path);
+  
+    GrB_Vector_new(&x_gb, GrB_FP64, N);
+    GxB_Vector_Option_set(x_gb, GxB_SPARSITY_CONTROL, GxB_BITMAP);
+    //GrB_Vector_assign_FP64(x_gb, NULL, NULL, 1.0, GrB_ALL, N, NULL);
+    for (GrB_Index i = 0; i < M; i += 4) {
+      GrB_Vector_setElement_FP64(x_gb, (double)i, i);
     }
-    GrB_Matrix_build_FP64(A_trop_gb, I.data(), J.data(), V.data(), V.size(), GrB_PLUS_FP64);
-    //A_trop_taco.pack();
+    GrB_Vector_wait(&x_gb);
+    taco_uassert(is_bitmap_vector(&x_gb)) << "x is not bitmap";
   
-    GrB_Vector_new(&x_trop_gb, GrB_FP64, N);
-    GrB_Vector_assign_FP64(x_trop_gb, NULL, NULL, 0, GrB_ALL, N, NULL);
+    GrB_Vector_new(&m_gb, GrB_BOOL, M);
+    GxB_Vector_Option_set(m_gb, GxB_SPARSITY_CONTROL, GxB_FULL);
+    GrB_Vector_assign_BOOL(m_gb, NULL, NULL, true, GrB_ALL, N, NULL);
+    for (GrB_Index i = 0; i < M; i += 4) {
+      GrB_Vector_setElement_BOOL(m_gb, false, i);
+    }
+    GrB_Vector_wait(&m_gb);
+    taco_uassert(is_dense_vector(&m_gb)) << "m is not dense";
   
-    //x_trop_taco = Tensor<double>({T.getDimension(1)}, dv, std::numeric_limits<double>::infinity());
-    //for (int i = 0; i < T.getDimension(1); ++i) {
-    //  x_trop_taco.insert({i}, 0.0);
+    //GrB_Index stride = (GrB_Index)std::sqrt(M);
+    //for (GrB_Index i = 0; i < M; i += stride) {
+    //  indices.push_back(i);
     //}
-    //x_trop_taco.pack();
-
-    GrB_Index stride = (GrB_Index)std::sqrt(T.getDimension(0));
-    for (GrB_Index i = 0; i < T.getDimension(0); i += stride) {
-      indices.push_back(i);
-    }
-    indices_taco = indices_to_taco_tensor(indices.data(), indices.size());
+    //indices_taco = indices_to_taco_tensor(indices.data(), indices.size());
   }
 
-  GrB_Matrix A_trop_gb = nullptr;
-  GrB_Vector x_trop_gb = nullptr;
-  Tensor<double> A_trop_taco;
-  Tensor<double> x_trop_taco;
-  taco_tensor_t* A_trop_taco_t = nullptr;
-  taco_tensor_t* x_trop_taco_t = nullptr;
+  void read_matrix(const std::string& matrix_path) {
+    std::fstream stream;
+    stream.open(matrix_path, std::fstream::in);
+    if (!stream) {
+      stream.close();
+      return;
+    }
+  
+    std::string line;
+    std::getline(stream, line);
+  
+    // Read Header
+    std::stringstream lineStream(line);
+    std::string head, type, formats, field, symmetry;
+    lineStream >> head >> type >> formats >> field >> symmetry;
+    assert(head=="%%MatrixMarket");
+    // type = [matrix tensor]
+    // formats = [coordinate array]
+    assert((type == "matrix") || (type == "tensor"));
+  
+    // field = [real integer complex pattern]
+    bool isreal = false;
+    bool isint = false;
+    if (field == "complex") {
+      stream.close();
+      return;
+    } else if (field == "real") {
+      isreal = true;
+    } else if (field == "integer") {
+      isint = true;
+    }
+  
+    // symmetry = [general symmetric skew-symmetric Hermitian]
+    if ((symmetry != "general") && (symmetry != "symmetric") && 
+        (symmetry != "skew-symmetric")) {
+      stream.close();
+      return;
+    }
+  
+    const bool symm = ((symmetry == "symmetric") || 
+                       (symmetry == "skew-symmetric"));
+    const bool skew = (symmetry == "skew-symmetric");
+  
+    std::getline(stream, line);
+  
+    // Skip comments at the top of the file
+    std::string token;
+    do {
+      std::stringstream lineStream(line);
+      lineStream >> token;
+      if (token[0] != '%') {
+        break;
+      }
+    } while (std::getline(stream, line));
+  
+    // The first non-comment line is the header with dimensions
+    std::vector<GrB_Index> dimensions;
+    char* linePtr = (char*)line.data();
+    while (auto dimension = std::strtoull(linePtr, &linePtr, 10)) {
+      dimensions.push_back(dimension);
+    }
+  
+    assert(dimensions.size() == 3);
+    nnz = dimensions[2];
+  
+    GrB_Index* rows = (GrB_Index*)malloc(sizeof(GrB_Index) * nnz * (1 + symm));
+    GrB_Index* cols = (GrB_Index*)malloc(sizeof(GrB_Index) * nnz * (1 + symm));
+    double* fvals = (double*)malloc(sizeof(double) * nnz * (1 + symm));
+    bool* bvals = (bool*)malloc(sizeof(bool) * nnz * (1 + symm));
+  
+    for (nnz = 0; std::getline(stream, line); nnz++) {
+      //if (nnz % 10000000 == 0) std::cout << nnz << std::endl;
+      linePtr = (char*)line.data();
+  
+      const GrB_Index i = strtoull(linePtr, &linePtr, 10) - 1;
+      const GrB_Index j = strtoull(linePtr, &linePtr, 10) - 1;
+
+      double fval = 1.0;
+      bool bval = true;;
+      if (isreal) {
+        fval = strtod(linePtr, &linePtr);
+        bval = (fval != 0.0);
+      } else if (isint) {
+        fval = strtoll(linePtr, &linePtr, 10);
+        bval = (fval != 0.0);
+      }
+  
+      rows[nnz] = i;
+      cols[nnz] = j;
+      fvals[nnz] = fval;
+      bvals[nnz] = bval;
+  
+      if (symm && i != j) {
+        nnz++;
+  
+        if (skew) {
+          fval = -1.0 * fval;
+        }
+  
+        rows[nnz] = j;
+        cols[nnz] = i;
+        fvals[nnz] = fval;
+        bvals[nnz] = bval;
+      }
+    }
+  
+    stream.close();
+  
+    GrB_Matrix_new(&A_gb, GrB_FP64, dimensions[0], dimensions[1]);
+    GxB_Matrix_Option_set(A_gb, GxB_SPARSITY_CONTROL, GxB_SPARSE);
+    GrB_Matrix_build_FP64(A_gb, rows, cols, fvals, nnz, GrB_PLUS_FP64);
+    GrB_Matrix_wait(&A_gb);
+    taco_uassert(is_csr_matrix(&A_gb)) << "A is not CSR";
+
+    //GrB_Matrix_new(&A_bool_gb, GrB_BOOL, dimensions[0], dimensions[1]);
+    //GrB_Matrix_build_BOOL(A_gb, rows, cols, bvals, nnz, GrB_LOR);
+
+    M = dimensions[0];
+    N = dimensions[1];
+  }
+
+  bool is_bool = false;
+  bool validate = false;
+  GrB_Index M, N, nnz;
+  GrB_Matrix A_gb = nullptr;
+  GrB_Matrix C_gb = nullptr;
+  GrB_Vector x_gb = nullptr;
+  GrB_Vector m_gb = nullptr;
+  GrB_Vector y_gb = nullptr;
+  taco_tensor_t* A_taco_t = nullptr;
+  taco_tensor_t* x_taco_t = nullptr;
+  taco_tensor_t* m_taco_t = nullptr;
   std::vector<GrB_Index> indices;
   taco_tensor_t indices_taco;
 };
 GraphBLASFixture fixture;
 
 static void bench_mxv_suitesparse(benchmark::State& state) {
-  GrB_init(GrB_BLOCKING);
-  GxB_Global_Option_set(GxB_HYPER_SWITCH, GxB_NEVER_HYPER);
-  GxB_Global_Option_set(GxB_FORMAT, GxB_BY_ROW);
-  GxB_Global_Option_set(GxB_NTHREADS, nthreads);
-
+  //GrB_init(GrB_BLOCKING);
+  //GxB_Global_Option_set(GxB_HYPER_SWITCH, GxB_NEVER_HYPER);
+  //GxB_Global_Option_set(GxB_FORMAT, GxB_BY_ROW);
+  //GxB_Global_Option_set(GxB_NTHREADS, nthreads);
+  //GxB_Global_Option_set(GxB_CHUNK, (double)1);
   GrB_Descriptor desc;
-  //GrB_Descriptor_set (desc, GrB_OUTP, GrB_REPLACE);
+  GrB_Descriptor_new(&desc);
+  GrB_Descriptor_set(desc, GrB_MASK, GrB_COMP);
+  GrB_Descriptor_set(desc, GrB_OUTP, GrB_REPLACE);
   
-  GrB_Vector y = NULL;;
   for (auto _ : state) {
     state.PauseTiming();
 
-    GrB_Vector_free(&y);
+    GrB_Vector_free(&fixture.y_gb);
+
+    GrB_Vector_new(&fixture.y_gb, GrB_FP64, fixture.M);
+    GxB_Vector_Option_set(fixture.y_gb, GxB_SPARSITY_CONTROL, GxB_BITMAP);
+    //GxB_Vector_Option_set(fixture.y_gb, GxB_BITMAP_SWITCH, 0.0);
+    //GrB_Vector_assign_FP64(fixture.y_gb, NULL, NULL, 0, GrB_ALL, fixture.M, NULL);
 
     state.ResumeTiming();
 
-    GrB_Vector_new(&y, GrB_FP64, fixture.A_trop_taco.getDimension(0));
-    GrB_mxv(y, NULL, NULL, GrB_MIN_PLUS_SEMIRING_FP64, fixture.A_trop_gb, fixture.x_trop_gb, desc);
+    GrB_mxv(fixture.y_gb, fixture.m_gb, NULL, GrB_MIN_PLUS_SEMIRING_FP64, fixture.A_gb, fixture.x_gb, desc);
+    //GrB_mxv(fixture.y_gb, NULL, NULL, GrB_MIN_PLUS_SEMIRING_FP64, fixture.A_gb, fixture.x_gb, desc);
     //GrB_vxm(x, NULL, NULL, GrB_MIN_PLUS_SEMIRING_FP64, x, A, desc);
   }
-  GrB_Vector_free(&y);
+  taco_uassert(is_bitmap_vector(&fixture.y_gb)) << "y is not bitmap";
+  if (!fixture.validate) {
+    GrB_Vector_free(&fixture.y_gb);
+  }
 }
 
 static void bench_mxm_suitesparse(benchmark::State& state) {
-  GrB_init(GrB_BLOCKING);
-  GxB_Global_Option_set(GxB_HYPER_SWITCH, GxB_NEVER_HYPER);
-  GxB_Global_Option_set(GxB_FORMAT, GxB_BY_ROW);
-  GxB_Global_Option_set(GxB_NTHREADS, nthreads);
-
+  //GrB_init(GrB_BLOCKING);
+  //GxB_Global_Option_set(GxB_HYPER_SWITCH, GxB_NEVER_HYPER);
+  //GxB_Global_Option_set(GxB_FORMAT, GxB_BY_ROW);
+  //GxB_Global_Option_set(GxB_NTHREADS, nthreads);
   GrB_Descriptor desc;
-  GrB_Descriptor_set (desc, GrB_OUTP, GrB_REPLACE);
+  GrB_Descriptor_new(&desc);
+  GrB_Descriptor_set(desc, GrB_OUTP, GrB_REPLACE);
+  GrB_Descriptor_set(desc, GxB_AxB_METHOD, GxB_AxB_GUSTAVSON);
+  //GrB_Descriptor_set(desc, GxB_SORT, GxB_DEFAULT);
+  //GrB_Descriptor_set(desc, GxB_SORT, (GrB_Desc_Value)1);
   
-  GrB_Matrix C = NULL;
   for (auto _ : state) {
     state.PauseTiming();
 
-    GrB_Matrix_free(&C);
+    GrB_Matrix_free(&fixture.C_gb);
 
+    GrB_Matrix_new(&fixture.C_gb, GrB_FP64, fixture.M, fixture.N);
+    GxB_Matrix_Option_set(fixture.C_gb, GxB_SPARSITY_CONTROL, GxB_SPARSE);
+    
     state.ResumeTiming();
 
-    GrB_Matrix_new(&C, GrB_FP64, fixture.A_trop_taco.getDimension(0), fixture.A_trop_taco.getDimension(1));
-    GrB_mxm(C, NULL, NULL, GrB_MIN_PLUS_SEMIRING_FP64, fixture.A_trop_gb, fixture.A_trop_gb, desc);
+    GrB_mxm(fixture.C_gb, NULL, NULL, GrB_MIN_PLUS_SEMIRING_FP64, fixture.A_gb, fixture.A_gb, desc);
+    //GrB_Matrix_wait(&fixture.C_gb);
   }
-  GrB_Matrix_free(&C);
+  taco_uassert(is_csr_matrix(&fixture.C_gb)) << "C is not CSR";
+  if (!fixture.validate) {
+    GrB_Matrix_free(&fixture.C_gb);
+  }
 }
 
 static void bench_extract_suitesparse(benchmark::State& state) {
-  GrB_init(GrB_BLOCKING);
-  GxB_Global_Option_set(GxB_HYPER_SWITCH, GxB_NEVER_HYPER);
-  GxB_Global_Option_set(GxB_FORMAT, GxB_BY_ROW);
-  GxB_Global_Option_set(GxB_NTHREADS, nthreads);
-
+  //GrB_init(GrB_BLOCKING);
+  //GxB_Global_Option_set(GxB_HYPER_SWITCH, GxB_NEVER_HYPER);
+  //GxB_Global_Option_set(GxB_FORMAT, GxB_BY_ROW);
+  //GxB_Global_Option_set(GxB_NTHREADS, nthreads);
   GrB_Descriptor desc;
-  GrB_Descriptor_set (desc, GrB_OUTP, GrB_REPLACE);
+  GrB_Descriptor_new(&desc);
+  GrB_Descriptor_set(desc, GrB_OUTP, GrB_REPLACE);
 
   GrB_Index* indices = fixture.indices.data();
   GrB_Index size = fixture.indices.size();
@@ -330,9 +541,9 @@ static void bench_extract_suitesparse(benchmark::State& state) {
 
     state.ResumeTiming();
 
-    //GrB_Matrix_new(&C, GrB_FP64, fixture.A_trop_taco.getDimension(0), fixture.A_trop_taco.getDimension(1));
+    //GrB_Matrix_new(&C, GrB_FP64, fixture.A_taco.getDimension(0), fixture.A_taco.getDimension(1));
     GrB_Matrix_new(&C, GrB_FP64, fixture.indices.size(), fixture.indices.size());
-    GrB_Matrix_extract(C, NULL, NULL, fixture.A_trop_gb, indices, size, indices, size, desc);
+    GrB_Matrix_extract(C, NULL, NULL, fixture.A_gb, indices, size, indices, size, desc);
   }
   //GrB_Index nnz;
   //GrB_Matrix_nvals(&nnz, C);
@@ -342,7 +553,8 @@ static void bench_extract_suitesparse(benchmark::State& state) {
 
 #define restrict __restrict__
 
-int taco_mxv_trop(taco_tensor_t *y, taco_tensor_t *A, taco_tensor_t *x) {
+int taco_mxv(taco_tensor_t *y, taco_tensor_t *A, taco_tensor_t *x, taco_tensor_t *m) {
+#if 0
   GrB_Index y1_dimension = (GrB_Index)(y->dimensions[0]);
   double* restrict y_vals = (double*)(y->vals);
   GrB_Index A1_dimension = (GrB_Index)(A->dimensions[0]);
@@ -351,6 +563,8 @@ int taco_mxv_trop(taco_tensor_t *y, taco_tensor_t *A, taco_tensor_t *x) {
   double* restrict A_vals = (double*)(A->vals);
   GrB_Index x1_dimension = (GrB_Index)(x->dimensions[0]);
   double* restrict x_vals = (double*)(x->vals);
+  GrB_Index m1_dimension = (GrB_Index)(m->dimensions[0]);
+  bool* restrict m_vals = (bool*)(m->vals);
 
   //y_vals = (double*)calloc(y1_dimension, sizeof(double));
   y_vals = (double*)malloc(sizeof(double) * y1_dimension);
@@ -359,6 +573,7 @@ int taco_mxv_trop(taco_tensor_t *y, taco_tensor_t *A, taco_tensor_t *x) {
   #pragma omp parallel for schedule(dynamic, 256) num_threads(nthreads)
   for (GrB_Index i = 0; i < x1_dimension; i++) {
     //if (!(x_vals[i] != INFINITY)) {
+    if (!(m_vals[i] != 0)) {
       double tj_val = INFINITY;
       //double tj_val = 0.0;
       for (GrB_Index jA = A2_pos[i]; jA < A2_pos[(i + 1)]; jA++) {
@@ -366,18 +581,59 @@ int taco_mxv_trop(taco_tensor_t *y, taco_tensor_t *A, taco_tensor_t *x) {
         tj_val = fmin(tj_val,A_vals[jA] + x_vals[j]);
       }
       y_vals[i] = tj_val;
-    //}
+    }
+    else {
+      y_vals[i] = INFINITY;
+    }
   }
 
   y->vals = (uint8_t*)y_vals;
   return 0;
+#else
+  GrB_Index y1_dimension = (GrB_Index)(y->dimensions[0]);
+  int8_t* restrict y1_valid = (int8_t*)(y->indices[0][0]);
+  double* restrict y_vals = (double*)(y->vals);
+  GrB_Index A1_dimension = (GrB_Index)(A->dimensions[0]);
+  GrB_Index* restrict A2_pos = (GrB_Index*)(A->indices[1][0]);
+  GrB_Index* restrict A2_crd = (GrB_Index*)(A->indices[1][1]);
+  double* restrict A_vals = (double*)(A->vals);
+  GrB_Index x1_dimension = (GrB_Index)(x->dimensions[0]);
+  int8_t* restrict x1_valid = (int8_t*)(x->indices[0][0]);
+  double* restrict x_vals = (double*)(x->vals);
+  GrB_Index m1_dimension = (GrB_Index)(m->dimensions[0]);
+  bool* restrict m_vals = (bool*)(m->vals);
+
+  y1_valid = (int8_t*)calloc(1, sizeof(int8_t) * y1_dimension);
+  int32_t y_capacity = y1_dimension;
+  y_vals = (double*)malloc(sizeof(double) * y_capacity);
+
+  #pragma omp parallel for schedule(dynamic, 256) num_threads(nthreads)
+  for (int32_t i = 0; i < m1_dimension; i++) {
+    if (!(m_vals[i] != 0)) {
+      //double tj_val = 0.0;
+      double tj_val = INFINITY;
+      for (int32_t jA = A2_pos[i]; jA < A2_pos[(i + 1)]; jA++) {
+        int32_t j = A2_crd[jA];
+        if (x1_valid[j] == 1) {
+          tj_val = fmin(tj_val,A_vals[jA] + x_vals[j]);
+        }
+      }
+      y_vals[i] = tj_val;
+      y1_valid[i] = 1;
+    }
+  }
+
+  y->indices[0][0] = (uint8_t*)(y1_valid);
+  y->vals = (uint8_t*)y_vals;
+  return 0;
+#endif
 }
 
 int cmp(const void *a, const void *b) {
   return *((const int*)a) - *((const int*)b);
 }
 
-int taco_mxm_trop(taco_tensor_t *A, taco_tensor_t *B, taco_tensor_t *C) {
+int taco_mxm(taco_tensor_t *A, taco_tensor_t *B, taco_tensor_t *C) {
   GrB_Index A1_dimension = (GrB_Index)(A->dimensions[0]);
   GrB_Index* restrict A2_pos = (GrB_Index*)(A->indices[1][0]);
   GrB_Index* restrict A2_crd = (GrB_Index*)(A->indices[1][1]);
@@ -398,7 +654,7 @@ int taco_mxm_trop(taco_tensor_t *A, taco_tensor_t *B, taco_tensor_t *C) {
   GrB_Index* restrict qw_index_list_all = 0;
   qw_index_list_all = (GrB_Index*)malloc(sizeof(GrB_Index) * C2_dimension * omp_get_max_threads());
   bool* restrict qw_already_set_all = (bool*)calloc(C2_dimension * omp_get_max_threads(), sizeof(bool));
-  #pragma omp parallel for schedule(dynamic, 256) num_threads(nthreads)
+  #pragma omp parallel for schedule(dynamic, 128) num_threads(nthreads)
   for (GrB_Index qi = 0; qi < B1_dimension; qi++) {
     GrB_Index qw_index_list_size = 0;
     GrB_Index* qw_index_list = qw_index_list_all + (C2_dimension * omp_get_thread_num());
@@ -438,7 +694,7 @@ int taco_mxm_trop(taco_tensor_t *A, taco_tensor_t *B, taco_tensor_t *C) {
   w_index_list_all = (GrB_Index*)malloc(sizeof(GrB_Index) * C2_dimension * omp_get_max_threads());
   bool* restrict w_already_set_all = (bool*)calloc(C2_dimension * omp_get_max_threads(), sizeof(bool));
   w_all = (double*)malloc(sizeof(double) * C2_dimension * omp_get_max_threads());
-  #pragma omp parallel for schedule(dynamic, 256) num_threads(nthreads)
+  #pragma omp parallel for schedule(dynamic, 128) num_threads(nthreads)
   for (GrB_Index i = 0; i < B1_dimension; i++) {
     GrB_Index w_index_list_size = 0;
     GrB_Index* w_index_list = w_index_list_all + (C2_dimension * omp_get_thread_num());
@@ -455,7 +711,8 @@ int taco_mxm_trop(taco_tensor_t *A, taco_tensor_t *B, taco_tensor_t *C) {
           w_index_list_size++;
         }
         else {
-          w[j] = fmin(w[j], B_vals[kB] * C_vals[jC]);
+          w[j] = fmin(w[j], B_vals[kB] + C_vals[jC]);
+          //w[j] = w[j] + B_vals[kB] * C_vals[jC]);
         }
       }
     }
@@ -489,7 +746,7 @@ int taco_mxm_trop(taco_tensor_t *A, taco_tensor_t *B, taco_tensor_t *C) {
 
 #define TACO_MIN(_a,_b) ((_a) < (_b) ? (_a) : (_b))
 
-int taco_extract_trop(taco_tensor_t *A, taco_tensor_t *B, taco_tensor_t *I, taco_tensor_t *J) {
+int taco_extract(taco_tensor_t *A, taco_tensor_t *B, taco_tensor_t *I, taco_tensor_t *J) {
   GrB_Index A1_dimension = (GrB_Index)(A->dimensions[0]);
   GrB_Index* restrict A2_pos = (GrB_Index*)(A->indices[1][0]);
   GrB_Index* restrict A2_crd = (GrB_Index*)(A->indices[1][1]);
@@ -600,23 +857,125 @@ int taco_extract_trop(taco_tensor_t *A, taco_tensor_t *B, taco_tensor_t *I, taco
   return 0;
 }
 
+ir::Expr addImpl(const std::vector<ir::Expr>& v) {
+  return ir::Add::make(v[0], v[1]);
+}
+Func AddOp("add", addImpl, {Annihilator(std::numeric_limits<double>::infinity()), Identity(0), Commutative(), Associative()});
+
+ir::Expr minImpl(const std::vector<ir::Expr>& v) {
+  return ir::Min::make(v[0], v[1]);
+}
+Func MinOp("min", minImpl, {Identity(std::numeric_limits<double>::infinity()), Commutative(), Associative()});
+
+ir::Expr maskImpl(const std::vector<ir::Expr>& v) {
+  return v[0];
+}
+struct MaskAlgebra {
+  IterationAlgebra operator()(const std::vector<IndexExpr>& r) {
+    return Intersect(r[0], Complement(r[1]));
+  }
+};
+Func MaskOp("mask", maskImpl, MaskAlgebra());
+
+ir::Expr selectImpl(const std::vector<ir::Expr>& v) {
+  return v[1];
+}
+ir::Expr defaultImpl(const std::vector<ir::Expr>& v) {
+  return v[2];
+}
+struct SelectAlgebra {
+  IterationAlgebra operator()(const std::vector<IndexExpr>& r) {
+    return Union(Intersect(Complement(r[0]), r[1]), Intersect(r[0], r[2]));
+    return Union(Intersect(Complement(r[0]), r[1]), r[2]);
+    return Intersect(Complement(r[0]), r[1]);
+  }
+};
+
+class BitmapModeFormat : public ModeFormatImpl {
+public:
+  BitmapModeFormat() :
+      ModeFormatImpl("dense", false, true, true, false, false, true, false,
+                     false, true, true, false) {}
+
+  ~BitmapModeFormat() override {}
+
+  ModeFormat copy(std::vector<ModeFormat::Property> properties) const override {
+    return ModeFormat(std::make_shared<BitmapModeFormat>());  
+  }
+  
+  ModeFunction locate(ir::Expr parentPos, std::vector<ir::Expr> coords,
+                      Mode mode) const override {
+    ir::Expr pos = ir::Add::make(ir::Mul::make(parentPos, getWidth(mode)), coords.back());
+    return ModeFunction(ir::Stmt(), {pos, ir::Eq::make(ir::Load::make(getValidArray(mode.getModePack()), pos), 1)});
+  }
+
+  ir::Stmt getInsertCoord(ir::Expr p, const std::vector<ir::Expr>& i, 
+                          Mode mode) const override {
+    return ir::Store::make(getValidArray(mode.getModePack()), p, 1);
+  }
+
+  ir::Expr getWidth(Mode mode) const override {
+    return (mode.getSize().isFixed() && mode.getSize().getSize() < 16) ?
+           (int)mode.getSize().getSize() : 
+           getSizeArray(mode.getModePack());
+  }
+
+  //ir::Stmt getInsertInitCoords(ir::Expr pBegin, ir::Expr pEnd, 
+  //                             Mode mode) const override;
+
+  ir::Stmt getInsertInitLevel(ir::Expr szPrev, ir::Expr sz, 
+                              Mode mode) const override {
+    return ir::Allocate::make(getValidArray(mode.getModePack()), sz, false, ir::Expr(), true);
+  }
+
+  std::vector<ir::Expr> getArrays(ir::Expr tensor, int mode, 
+                                  int level) const override {
+    return {ir::GetProperty::make(tensor, ir::TensorProperty::Dimension, mode),
+            ir::GetProperty::make(tensor, ir::TensorProperty::Indices,
+                              level - 1, 0, util::toString(tensor) + 
+                              std::to_string(level) + "_valid")};
+  }
+  
+  ir::Expr getSizeArray(ModePack pack) const {
+    return pack.getArray(0);
+  }
+
+  ir::Expr getValidArray(ModePack pack) const {
+    return pack.getArray(1);
+  }
+};
+ModeFormat Bitmap(std::make_shared<BitmapModeFormat>());
+
 static void bench_mxv_taco(benchmark::State& state) {
 #if 0
+  //std::map<std::vector<int>, FuncBodyGenerator> def;
+  //def[{1,0,0}] = selectImpl;
+  Func SelectOp("select", selectImpl, SelectAlgebra(), {{{0, 2}, defaultImpl}});
+  //Func SelectOp("select", selectImpl);
+
   taco_set_num_threads(nthreads);
   for (auto _ : state) {
     state.PauseTiming();
 
     IndexVar i, j;
-    Tensor<double> y({fixture.A_trop_taco.getDimension(0)}, dv, std::numeric_limits<double>::infinity());
-    y(i) = Reduction(MinOp(), j, AddOp(fixture.A_trop_taco(i,j), fixture.x_trop_taco(j)));
-    //y(i) = MaskOp(Reduction(MinOp(), j, AddOp(fixture.A_trop_taco(i,j), fixture.x_trop_taco(j))), fixture.x_trop_taco(i));
-    //y(i) = MinOp(Reduction(MinOp(), j, AddOp(A(i,j), x(j))), x(i));
+    Format dv({Dense});
+    Format bmv({Bitmap});
+    Tensor<double> A("A", {fixture.M, fixture.N}, CSR, std::numeric_limits<double>::infinity());
+    Tensor<double> y("y", {fixture.M}, bmv, std::numeric_limits<double>::infinity());
+    Tensor<double> x("x", {fixture.N}, bmv, std::numeric_limits<double>::infinity());
+    Tensor<bool> m("m", {fixture.M}, dv);
+    //y(i) = x(i);
+    //y(i) = SelectOp(m(i), Reduction(MinOp(), j, AddOp(A(i,j), x(j))), x(i));
     //y(i) = MaskOp(Reduction(MinOp(), j, AddOp(A(i,j), x(j))), x(i));
+    y(i) = MaskOp(Reduction(MinOp(), j, AddOp(A(i,j), x(j))), m(i));
+    //y(i) = Reduction(MinOp(), j, AddOp(A(i,j), x(j)));
+    //y(i) = MinOp(Reduction(MinOp(), j, AddOp(A(i,j), x(j))), x(i));
     //y(i) = MinOp(MaskOp(Reduction(MinOp(), j, AddOp(A(i,j), x(j))), x(i)), x(i));
     //y(i) = MaskOp(MinOp(Reduction(MinOp(), j, AddOp(A(i,j), x(j))), x(i)), x(i));
     //y(i) = MinOp(FilterOp(x(i)) * Reduction(MinOp(), j, AddOp(A(i,j), x(j))), x(i));
 
-    y.compile();
+    auto stmt = y.getAssignment().concretize().parallelize(i, ParallelUnit::CPUThread, OutputRaceStrategy::NoRaces);
+    y.compile(stmt, true);
 
     state.ResumeTiming();
 
@@ -625,66 +984,79 @@ static void bench_mxv_taco(benchmark::State& state) {
   }
   taco_set_num_threads(1);
 #else
-  if (!fixture.A_trop_taco_t) {
-    fixture.A_trop_taco_t = to_taco_tensor(&fixture.A_trop_gb);
+  if (!fixture.A_taco_t) {
+    fixture.A_taco_t = to_csr_taco_tensor(&fixture.A_gb);
   }
-  if (!fixture.x_trop_taco_t) {
-    fixture.x_trop_taco_t = to_taco_tensor(&fixture.x_trop_gb);
+  if (!fixture.x_taco_t) {
+    fixture.x_taco_t = to_bitmap_taco_tensor(&fixture.x_gb);
   }
-  taco_tensor_t y = new_vec_taco_tensor(fixture.A_trop_taco.getDimension(0));
+  if (!fixture.m_taco_t) {
+    fixture.m_taco_t = to_dense_taco_tensor(&fixture.m_gb);
+  }
+  taco_tensor_t y = new_bitmap_taco_tensor(fixture.M);
   for (auto _ : state) {
     state.PauseTiming();
 
-    free(y.vals);
+    free_bitmap_taco_tensor(y);
 
     state.ResumeTiming();
 
-    taco_mxv_trop(&y, fixture.A_trop_taco_t, fixture.x_trop_taco_t);
+    taco_mxv(&y, fixture.A_taco_t, fixture.x_taco_t, fixture.m_taco_t);
   }
-  free(y.vals);
+  if (fixture.validate && fixture.y_gb) {
+    auto y_gb = to_bitmap_taco_tensor(&fixture.y_gb);
+    std::cout << "comparing mxv: " << compare_double_bitmap(get_bitmap_arrays(y), get_bitmap_arrays(*y_gb)) << std::endl;
+    fixture.y_gb = nullptr;
+  }
+  free_bitmap_taco_tensor(y);
 #endif
 }
 
 static void bench_mxm_taco(benchmark::State& state) {
-  if (!fixture.A_trop_taco_t) {
-    fixture.A_trop_taco_t = to_taco_tensor(&fixture.A_trop_gb);
+  if (!fixture.A_taco_t) {
+    fixture.A_taco_t = to_csr_taco_tensor(&fixture.A_gb);
   }
-  taco_tensor_t C = new_mat_taco_tensor(fixture.A_trop_taco.getDimension(0), fixture.A_trop_taco.getDimension(1));
+  taco_tensor_t C = new_csr_taco_tensor(fixture.M, fixture.N);
   for (auto _ : state) {
     state.PauseTiming();
 
-    free_mat_taco_tensor(C);
+    free_csr_taco_tensor(C);
 
     state.ResumeTiming();
 
-    taco_mxm_trop(&C, fixture.A_trop_taco_t, fixture.A_trop_taco_t);
+    taco_mxm(&C, fixture.A_taco_t, fixture.A_taco_t);
   }
-  free_mat_taco_tensor(C);
+  if (fixture.validate && fixture.C_gb) {
+    auto C_gb = to_csr_taco_tensor(&fixture.C_gb);
+    std::cout << "comparing mxm: " << compare_double_csr(get_csr_arrays(C), get_csr_arrays(*C_gb)) << std::endl;
+    fixture.C_gb = nullptr;
+  }
+  free_csr_taco_tensor(C);
 }
 
 static void bench_extract_taco(benchmark::State& state) {
-  if (!fixture.A_trop_taco_t) {
-    fixture.A_trop_taco_t = to_taco_tensor(&fixture.A_trop_gb);
+  if (!fixture.A_taco_t) {
+    fixture.A_taco_t = to_csr_taco_tensor(&fixture.A_gb);
   }
-  taco_tensor_t B = new_mat_taco_tensor(fixture.indices.size(), fixture.indices.size());
+  taco_tensor_t B = new_csr_taco_tensor(fixture.indices.size(), fixture.indices.size());
   for (auto _ : state) {
     state.PauseTiming();
 
-    free_mat_taco_tensor(B);
+    free_csr_taco_tensor(B);
 
     state.ResumeTiming();
 
-    taco_extract_trop(&B, fixture.A_trop_taco_t, &fixture.indices_taco, &fixture.indices_taco);
+    taco_extract(&B, fixture.A_taco_t, &fixture.indices_taco, &fixture.indices_taco);
   }
   //std::cout << ((GrB_Index*)(B.indices[1][0]))[B.dimensions[0]] << std::endl;
-  free_mat_taco_tensor(B);
+  free_csr_taco_tensor(B);
 }
 
 GRAPHBLAS_BENCH(bench_mxv_suitesparse, 1000);
 GRAPHBLAS_BENCH(bench_mxm_suitesparse, 25);
-GRAPHBLAS_BENCH(bench_extract_suitesparse, 1000);
+//GRAPHBLAS_BENCH(bench_extract_suitesparse, 10);
 GRAPHBLAS_BENCH(bench_mxv_taco, 1000);
 GRAPHBLAS_BENCH(bench_mxm_taco, 25);
-GRAPHBLAS_BENCH(bench_extract_taco, 1000);
+//GRAPHBLAS_BENCH(bench_extract_taco, 10);
 
 #endif
