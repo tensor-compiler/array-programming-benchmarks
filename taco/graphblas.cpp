@@ -78,6 +78,7 @@ taco_tensor_t* to_dense_taco_tensor(GrB_Vector* vec) {
   return vect;
 }
 
+#if 0
 taco_tensor_t indices_to_taco_tensor(GrB_Index* indices, GrB_Index size) {
   GrB_Index* pos = new GrB_Index[2];
   pos[0] = 0;
@@ -91,6 +92,7 @@ taco_tensor_t indices_to_taco_tensor(GrB_Index* indices, GrB_Index size) {
 
   return ind;
 }
+#endif
 
 taco_tensor_t new_bitmap_taco_tensor(GrB_Index N) {
   taco_tensor_t vec;
@@ -151,27 +153,10 @@ bool is_csr_matrix(GrB_Matrix* mat) {
   return (sparsity == GxB_SPARSE && fmt == GxB_BY_ROW);
 }
 
-#if 0
-double compare_array(const double *x, const double *y, const size_t N) {
-  double ret = 0.0;
-  for (int i = 0; i < N; ++i) {
-    if (x[i] != 0.0) {
-      const double diff = std::abs(y[i] / x[i] - 1.0);
-      if (diff > ret) {
-        ret = diff;
-      }
-    } else if (y[i] != 0.0) {
-      return std::numeric_limits<double>::infinity();
-    }
-  }
-  return ret;
-}
-#endif
-
 struct BitmapArrays {
   GrB_Index m;
   int8_t* valid = nullptr;
-  double* fvals = nullptr;
+  void*   vals  = nullptr;
 };
 
 BitmapArrays get_bitmap_arrays(const taco_tensor_t vector) {
@@ -179,7 +164,7 @@ BitmapArrays get_bitmap_arrays(const taco_tensor_t vector) {
 
   vec.m = vector.dimensions[0];
   vec.valid = (int8_t*)vector.indices[0][0];
-  vec.fvals = (double*)vector.vals;
+  vec.vals = vector.vals;
 
   return vec;
 }
@@ -189,20 +174,23 @@ double compare_double_bitmap(BitmapArrays a, BitmapArrays b) {
     return std::numeric_limits<double>::infinity();
   }
 
+  double* avals = (double*)a.vals;
+  double* bvals = (double*)b.vals;
+
   double ret = 0.0;
   for (int i = 0 ; i < a.m; ++i) {
-    bool avalid = a.valid[i] && !std::isinf(a.fvals[i]);
-    bool bvalid = b.valid[i] && !std::isinf(b.fvals[i]);
+    bool avalid = a.valid[i] && !std::isinf(avals[i]);
+    bool bvalid = b.valid[i] && !std::isinf(bvals[i]);
     if (avalid != bvalid) {
       return std::numeric_limits<double>::infinity();
     }
     if (avalid) {
-      if (a.fvals[i] != 0.0) {
-        const double diff = std::abs(b.fvals[i] / a.fvals[i] - 1.0);
+      if (avals[i] != 0.0) {
+        const double diff = std::abs(bvals[i] / avals[i] - 1.0);
         if (diff > ret) {
           ret = diff;
         }
-      } else if (b.fvals[i] != 0.0) {
+      } else if (bvals[i] != 0.0) {
         return std::numeric_limits<double>::infinity();
       }
     }
@@ -211,11 +199,30 @@ double compare_double_bitmap(BitmapArrays a, BitmapArrays b) {
   return ret;
 }
 
+double compare_bool_bitmap(BitmapArrays a, BitmapArrays b) {
+  if (a.m != b.m) {
+    return 1.0;
+  }
+
+  bool* avals = (bool*)a.vals;
+  bool* bvals = (bool*)b.vals;
+
+  for (int i = 0 ; i < a.m; ++i) {
+    bool avalid = a.valid[i] && avals[i];
+    bool bvalid = b.valid[i] && bvals[i];
+    if (avalid != bvalid) {
+      return 1.0;
+    }
+  }
+
+  return 0.0;
+}
+
 struct CSRArrays {
   GrB_Index  m, n;
-  GrB_Index* pos   = nullptr;
-  GrB_Index* crd   = nullptr;
-  double*    fvals = nullptr;
+  GrB_Index* pos  = nullptr;
+  GrB_Index* crd  = nullptr;
+  void*      vals = nullptr;
 };
 
 CSRArrays get_csr_arrays(const taco_tensor_t matrix) {
@@ -225,7 +232,7 @@ CSRArrays get_csr_arrays(const taco_tensor_t matrix) {
   csr.n = matrix.dimensions[1];
   csr.pos = (GrB_Index*)matrix.indices[1][0];
   csr.crd = (GrB_Index*)matrix.indices[1][1];
-  csr.fvals = (double*)matrix.vals;
+  csr.vals = matrix.vals;
 
   return csr;
 }
@@ -236,32 +243,35 @@ double compare_double_csr(CSRArrays a, CSRArrays b) {
     return std::numeric_limits<double>::infinity();
   }
 
+  double* avals = (double*)a.vals;
+  double* bvals = (double*)b.vals;
+
   double ret = 0.0;
   for (int i = 0; i < a.m; ++i) {
     int pA = a.pos[i];
     int pB = b.pos[i];
     while (pA < a.pos[i + 1] && pB < b.pos[i + 1]) {
-      while (pA < a.pos[i + 1] && std::isinf(a.fvals[pA])) pA++;
-      while (pB < b.pos[i + 1] && std::isinf(b.fvals[pB])) pB++;
+      while (pA < a.pos[i + 1] && std::isinf(avals[pA])) pA++;
+      while (pB < b.pos[i + 1] && std::isinf(bvals[pB])) pB++;
       if (pA < a.pos[i + 1] && pB < b.pos[i + 1]) {
-        //std::cout << a.crd[pA] << " " << b.crd[pB] << " " << a.fvals[pA] << " " << b.fvals[pB] << std::endl;
+        //std::cout << a.crd[pA] << " " << b.crd[pB] << " " << avals[pA] << " " << bvals[pB] << std::endl;
         if (a.crd[pA] != b.crd[pB]) {
           return std::numeric_limits<double>::infinity();
-        } else if (a.fvals[pA] != 0.0) {
-          const double diff = std::abs(b.fvals[pB] / a.fvals[pA] - 1.0);
+        } else if (avals[pA] != 0.0) {
+          const double diff = std::abs(bvals[pB] / avals[pA] - 1.0);
           if (diff > ret) {
             ret = diff;
-            //std::cout << i << " " << a.crd[pA] << " " << b.crd[pB] << " " << a.fvals[pA] << " " << b.fvals[pB] << std::endl;
+            //std::cout << i << " " << a.crd[pA] << " " << b.crd[pB] << " " << avals[pA] << " " << bvals[pB] << std::endl;
           }
-        } else if (b.fvals[pB] != 0.0) {
+        } else if (bvals[pB] != 0.0) {
           return std::numeric_limits<double>::infinity();
         }
         pA++;
         pB++;
       }
     }
-    while (pA < a.pos[i + 1] && std::isinf(a.fvals[pA])) pA++;
-    while (pB < b.pos[i + 1] && std::isinf(b.fvals[pB])) pB++;
+    while (pA < a.pos[i + 1] && std::isinf(avals[pA])) pA++;
+    while (pB < b.pos[i + 1] && std::isinf(bvals[pB])) pB++;
     if (pA != a.pos[i + 1] || pB != b.pos[i + 1]) {
       return std::numeric_limits<double>::infinity();
     }
@@ -270,6 +280,39 @@ double compare_double_csr(CSRArrays a, CSRArrays b) {
   return ret;
 }
 
+double compare_bool_csr(CSRArrays a, CSRArrays b) {
+  //std::cout << a.m << " " << b.m << " " << a.n << " " << b.n << std::endl;
+  if (a.m != b.m || a.n != b.n) {
+    return 1.0;
+  }
+
+  bool* avals = (bool*)a.vals;
+  bool* bvals = (bool*)b.vals;
+
+  for (int i = 0; i < a.m; ++i) {
+    int pA = a.pos[i];
+    int pB = b.pos[i];
+    while (pA < a.pos[i + 1] && pB < b.pos[i + 1]) {
+      while (pA < a.pos[i + 1] && !avals[pA]) pA++;
+      while (pB < b.pos[i + 1] && !bvals[pB]) pB++;
+      if (pA < a.pos[i + 1] && pB < b.pos[i + 1]) {
+        //std::cout << a.crd[pA] << " " << b.crd[pB] << " " << avals[pA] << " " << bvals[pB] << std::endl;
+        if (a.crd[pA] != b.crd[pB]) {
+          return 1.0;
+        }
+        pA++;
+        pB++;
+      }
+    }
+    while (pA < a.pos[i + 1] && !avals[pA]) pA++;
+    while (pB < b.pos[i + 1] && !bvals[pB]) pB++;
+    if (pA != a.pos[i + 1] || pB != b.pos[i + 1]) {
+      return 1.0;
+    }
+  }
+
+  return 0.0;
+}
 const int nthreads = 12;
 
 struct GraphBLASFixture {
@@ -295,11 +338,19 @@ struct GraphBLASFixture {
 
     read_matrix(path);
   
-    GrB_Vector_new(&x_gb, GrB_FP64, N);
+    if (is_bool) {
+      GrB_Vector_new(&x_gb, GrB_BOOL, N);
+    } else {
+      GrB_Vector_new(&x_gb, GrB_FP64, N);
+    }
     GxB_Vector_Option_set(x_gb, GxB_SPARSITY_CONTROL, GxB_BITMAP);
     //GrB_Vector_assign_FP64(x_gb, NULL, NULL, 1.0, GrB_ALL, N, NULL);
     for (GrB_Index i = 0; i < M; i += 4) {
-      GrB_Vector_setElement_FP64(x_gb, (double)i, i);
+      if (is_bool) {
+        GrB_Vector_setElement_BOOL(x_gb, 1, i);
+      } else {
+        GrB_Vector_setElement_FP64(x_gb, (double)i, i);
+      }
     }
     GrB_Vector_wait(&x_gb);
     taco_uassert(is_bitmap_vector(&x_gb)) << "x is not bitmap";
@@ -387,8 +438,8 @@ struct GraphBLASFixture {
   
     GrB_Index* rows = (GrB_Index*)malloc(sizeof(GrB_Index) * nnz * (1 + symm));
     GrB_Index* cols = (GrB_Index*)malloc(sizeof(GrB_Index) * nnz * (1 + symm));
-    double* fvals = (double*)malloc(sizeof(double) * nnz * (1 + symm));
-    bool* bvals = (bool*)malloc(sizeof(bool) * nnz * (1 + symm));
+    double* fvals = !is_bool ? (double*)malloc(sizeof(double) * nnz * (1 + symm)) : nullptr;
+    bool* bvals = is_bool ? (bool*)malloc(sizeof(bool) * nnz * (1 + symm)) : nullptr;
   
     for (nnz = 0; std::getline(stream, line); nnz++) {
       //if (nnz % 10000000 == 0) std::cout << nnz << std::endl;
@@ -409,8 +460,12 @@ struct GraphBLASFixture {
   
       rows[nnz] = i;
       cols[nnz] = j;
-      fvals[nnz] = fval;
-      bvals[nnz] = bval;
+      if (fvals) {
+        fvals[nnz] = fval;
+      }
+      if (bvals) {
+        bvals[nnz] = bval;
+      }
   
       if (symm && i != j) {
         nnz++;
@@ -421,27 +476,37 @@ struct GraphBLASFixture {
   
         rows[nnz] = j;
         cols[nnz] = i;
-        fvals[nnz] = fval;
-        bvals[nnz] = bval;
+        if (fvals) {
+          fvals[nnz] = fval;
+        }
+        if (bvals) {
+          bvals[nnz] = bval;
+        }
       }
     }
   
     stream.close();
   
-    GrB_Matrix_new(&A_gb, GrB_FP64, dimensions[0], dimensions[1]);
+    GrB_Matrix_new(&A_gb, is_bool ? GrB_BOOL : GrB_FP64, dimensions[0], dimensions[1]);
     GxB_Matrix_Option_set(A_gb, GxB_SPARSITY_CONTROL, GxB_SPARSE);
-    GrB_Matrix_build_FP64(A_gb, rows, cols, fvals, nnz, GrB_PLUS_FP64);
+    if (is_bool) {
+      GrB_Matrix_build_BOOL(A_gb, rows, cols, bvals, nnz, GrB_LOR);
+    } else {
+      GrB_Matrix_build_FP64(A_gb, rows, cols, fvals, nnz, GrB_PLUS_FP64);
+    }
     GrB_Matrix_wait(&A_gb);
     taco_uassert(is_csr_matrix(&A_gb)) << "A is not CSR";
 
-    //GrB_Matrix_new(&A_bool_gb, GrB_BOOL, dimensions[0], dimensions[1]);
-    //GrB_Matrix_build_BOOL(A_gb, rows, cols, bvals, nnz, GrB_LOR);
+    free(rows);
+    free(cols);
+    free(fvals);
+    free(bvals);
 
     M = dimensions[0];
     N = dimensions[1];
   }
 
-  bool is_bool = false;
+  bool is_bool = true;
   bool validate = false;
   GrB_Index M, N, nnz;
   GrB_Matrix A_gb = nullptr;
@@ -452,17 +517,12 @@ struct GraphBLASFixture {
   taco_tensor_t* A_taco_t = nullptr;
   taco_tensor_t* x_taco_t = nullptr;
   taco_tensor_t* m_taco_t = nullptr;
-  std::vector<GrB_Index> indices;
-  taco_tensor_t indices_taco;
+  //std::vector<GrB_Index> indices;
+  //taco_tensor_t indices_taco;
 };
 GraphBLASFixture fixture;
 
 static void bench_mxv_suitesparse(benchmark::State& state) {
-  //GrB_init(GrB_BLOCKING);
-  //GxB_Global_Option_set(GxB_HYPER_SWITCH, GxB_NEVER_HYPER);
-  //GxB_Global_Option_set(GxB_FORMAT, GxB_BY_ROW);
-  //GxB_Global_Option_set(GxB_NTHREADS, nthreads);
-  //GxB_Global_Option_set(GxB_CHUNK, (double)1);
   GrB_Descriptor desc;
   GrB_Descriptor_new(&desc);
   GrB_Descriptor_set(desc, GrB_MASK, GrB_COMP);
@@ -473,16 +533,16 @@ static void bench_mxv_suitesparse(benchmark::State& state) {
 
     GrB_Vector_free(&fixture.y_gb);
 
-    GrB_Vector_new(&fixture.y_gb, GrB_FP64, fixture.M);
+    GrB_Vector_new(&fixture.y_gb, fixture.is_bool ? GrB_BOOL : GrB_FP64, fixture.M);
     GxB_Vector_Option_set(fixture.y_gb, GxB_SPARSITY_CONTROL, GxB_BITMAP);
-    //GxB_Vector_Option_set(fixture.y_gb, GxB_BITMAP_SWITCH, 0.0);
-    //GrB_Vector_assign_FP64(fixture.y_gb, NULL, NULL, 0, GrB_ALL, fixture.M, NULL);
 
     state.ResumeTiming();
 
-    GrB_mxv(fixture.y_gb, fixture.m_gb, NULL, GrB_MIN_PLUS_SEMIRING_FP64, fixture.A_gb, fixture.x_gb, desc);
-    //GrB_mxv(fixture.y_gb, NULL, NULL, GrB_MIN_PLUS_SEMIRING_FP64, fixture.A_gb, fixture.x_gb, desc);
-    //GrB_vxm(x, NULL, NULL, GrB_MIN_PLUS_SEMIRING_FP64, x, A, desc);
+    if (fixture.is_bool) {
+      GrB_mxv(fixture.y_gb, fixture.m_gb, NULL, GrB_LOR_LAND_SEMIRING_BOOL, fixture.A_gb, fixture.x_gb, desc);
+    } else {
+      GrB_mxv(fixture.y_gb, fixture.m_gb, NULL, GrB_MIN_PLUS_SEMIRING_FP64, fixture.A_gb, fixture.x_gb, desc);
+    }
   }
   taco_uassert(is_bitmap_vector(&fixture.y_gb)) << "y is not bitmap";
   if (!fixture.validate) {
@@ -491,28 +551,26 @@ static void bench_mxv_suitesparse(benchmark::State& state) {
 }
 
 static void bench_mxm_suitesparse(benchmark::State& state) {
-  //GrB_init(GrB_BLOCKING);
-  //GxB_Global_Option_set(GxB_HYPER_SWITCH, GxB_NEVER_HYPER);
-  //GxB_Global_Option_set(GxB_FORMAT, GxB_BY_ROW);
-  //GxB_Global_Option_set(GxB_NTHREADS, nthreads);
   GrB_Descriptor desc;
   GrB_Descriptor_new(&desc);
   GrB_Descriptor_set(desc, GrB_OUTP, GrB_REPLACE);
   GrB_Descriptor_set(desc, GxB_AxB_METHOD, GxB_AxB_GUSTAVSON);
-  //GrB_Descriptor_set(desc, GxB_SORT, GxB_DEFAULT);
-  //GrB_Descriptor_set(desc, GxB_SORT, (GrB_Desc_Value)1);
   
   for (auto _ : state) {
     state.PauseTiming();
 
     GrB_Matrix_free(&fixture.C_gb);
 
-    GrB_Matrix_new(&fixture.C_gb, GrB_FP64, fixture.M, fixture.N);
+    GrB_Matrix_new(&fixture.C_gb, fixture.is_bool ? GrB_BOOL : GrB_FP64, fixture.M, fixture.N);
     GxB_Matrix_Option_set(fixture.C_gb, GxB_SPARSITY_CONTROL, GxB_SPARSE);
     
     state.ResumeTiming();
 
-    GrB_mxm(fixture.C_gb, NULL, NULL, GrB_MIN_PLUS_SEMIRING_FP64, fixture.A_gb, fixture.A_gb, desc);
+    if (fixture.is_bool) {
+      GrB_mxm(fixture.C_gb, NULL, NULL, GrB_LOR_LAND_SEMIRING_BOOL, fixture.A_gb, fixture.A_gb, desc);
+    } else {
+      GrB_mxm(fixture.C_gb, NULL, NULL, GrB_MIN_PLUS_SEMIRING_FP64, fixture.A_gb, fixture.A_gb, desc);
+    }
     //GrB_Matrix_wait(&fixture.C_gb);
   }
   taco_uassert(is_csr_matrix(&fixture.C_gb)) << "C is not CSR";
@@ -521,6 +579,7 @@ static void bench_mxm_suitesparse(benchmark::State& state) {
   }
 }
 
+#if 0
 static void bench_extract_suitesparse(benchmark::State& state) {
   //GrB_init(GrB_BLOCKING);
   //GxB_Global_Option_set(GxB_HYPER_SWITCH, GxB_NEVER_HYPER);
@@ -550,10 +609,11 @@ static void bench_extract_suitesparse(benchmark::State& state) {
   //std::cout << "nnz: " << nnz << std::endl;
   GrB_Matrix_free(&C);
 }
+#endif
 
 #define restrict __restrict__
 
-int taco_mxv(taco_tensor_t *y, taco_tensor_t *A, taco_tensor_t *x, taco_tensor_t *m) {
+int taco_mxv_trop(taco_tensor_t *y, taco_tensor_t *A, taco_tensor_t *x, taco_tensor_t *m) {
 #if 0
   GrB_Index y1_dimension = (GrB_Index)(y->dimensions[0]);
   double* restrict y_vals = (double*)(y->vals);
@@ -572,7 +632,6 @@ int taco_mxv(taco_tensor_t *y, taco_tensor_t *A, taco_tensor_t *x, taco_tensor_t
   //#pragma omp parallel for schedule(static) num_threads(nthreads)
   #pragma omp parallel for schedule(dynamic, 256) num_threads(nthreads)
   for (GrB_Index i = 0; i < x1_dimension; i++) {
-    //if (!(x_vals[i] != INFINITY)) {
     if (!(m_vals[i] != 0)) {
       double tj_val = INFINITY;
       //double tj_val = 0.0;
@@ -608,12 +667,12 @@ int taco_mxv(taco_tensor_t *y, taco_tensor_t *A, taco_tensor_t *x, taco_tensor_t
   y_vals = (double*)malloc(sizeof(double) * y_capacity);
 
   #pragma omp parallel for schedule(dynamic, 256) num_threads(nthreads)
-  for (int32_t i = 0; i < m1_dimension; i++) {
+  for (GrB_Index i = 0; i < m1_dimension; i++) {
     if (!(m_vals[i] != 0)) {
       //double tj_val = 0.0;
       double tj_val = INFINITY;
-      for (int32_t jA = A2_pos[i]; jA < A2_pos[(i + 1)]; jA++) {
-        int32_t j = A2_crd[jA];
+      for (GrB_Index jA = A2_pos[i]; jA < A2_pos[(i + 1)]; jA++) {
+        GrB_Index j = A2_crd[jA];
         if (x1_valid[j] == 1) {
           tj_val = fmin(tj_val,A_vals[jA] + x_vals[j]);
         }
@@ -629,11 +688,51 @@ int taco_mxv(taco_tensor_t *y, taco_tensor_t *A, taco_tensor_t *x, taco_tensor_t
 #endif
 }
 
+int taco_mxv_bool(taco_tensor_t *y, taco_tensor_t *A, taco_tensor_t *x, taco_tensor_t *m) {
+  GrB_Index y1_dimension = (GrB_Index)(y->dimensions[0]);
+  int8_t* restrict y1_valid = (int8_t*)(y->indices[0][0]);
+  bool* restrict y_vals = (bool*)(y->vals);
+  GrB_Index A1_dimension = (GrB_Index)(A->dimensions[0]);
+  GrB_Index* restrict A2_pos = (GrB_Index*)(A->indices[1][0]);
+  GrB_Index* restrict A2_crd = (GrB_Index*)(A->indices[1][1]);
+  bool* restrict A_vals = (bool*)(A->vals);
+  GrB_Index x1_dimension = (GrB_Index)(x->dimensions[0]);
+  int8_t* restrict x1_valid = (int8_t*)(x->indices[0][0]);
+  bool* restrict x_vals = (bool*)(x->vals);
+  GrB_Index m1_dimension = (GrB_Index)(m->dimensions[0]);
+  bool* restrict m_vals = (bool*)(m->vals);
+
+  y1_valid = (int8_t*)calloc(1, sizeof(int8_t) * y1_dimension);
+  int32_t y_capacity = y1_dimension;
+  y_vals = (bool*)malloc(sizeof(bool) * y_capacity);
+
+  #pragma omp parallel for schedule(dynamic, 256) num_threads(nthreads)
+  for (GrB_Index i = 0; i < m1_dimension; i++) {
+    if (!(m_vals[i] != 0)) {
+      bool tj_val = 0;
+      for (GrB_Index jA = A2_pos[i]; jA < A2_pos[(i + 1)]; jA++) {
+        GrB_Index j = A2_crd[jA];
+        if (x1_valid[j] == 1) {
+          tj_val = tj_val || A_vals[jA];
+          if (tj_val == 1) {
+            break;
+          }
+        }
+      }
+      y_vals[i] = tj_val;
+      y1_valid[i] = 1;
+    }
+  }
+
+  y->indices[0][0] = (uint8_t*)(y1_valid);
+  y->vals = (uint8_t*)y_vals;
+  return 0;
+}
 int cmp(const void *a, const void *b) {
   return *((const int*)a) - *((const int*)b);
 }
 
-int taco_mxm(taco_tensor_t *A, taco_tensor_t *B, taco_tensor_t *C) {
+int taco_mxm_trop(taco_tensor_t *A, taco_tensor_t *B, taco_tensor_t *C) {
   GrB_Index A1_dimension = (GrB_Index)(A->dimensions[0]);
   GrB_Index* restrict A2_pos = (GrB_Index*)(A->indices[1][0]);
   GrB_Index* restrict A2_crd = (GrB_Index*)(A->indices[1][1]);
@@ -648,6 +747,7 @@ int taco_mxm(taco_tensor_t *A, taco_tensor_t *B, taco_tensor_t *C) {
   GrB_Index* restrict C2_crd = (GrB_Index*)(C->indices[1][1]);
   double* restrict C_vals = (double*)(C->vals);
 
+#if 0
   GrB_Index* restrict A2_nnz = 0;
   A2_nnz = (GrB_Index*)malloc(sizeof(GrB_Index) * B1_dimension);
 
@@ -686,6 +786,7 @@ int taco_mxm(taco_tensor_t *A, taco_tensor_t *B, taco_tensor_t *C) {
   for (GrB_Index i = 0; i < A1_dimension; i++) {
     A2_pos[i + 1] = A2_pos[i] + A2_nnz[i];
   }
+  std::cout << A2_pos[A1_dimension] << std::endl;
   A2_crd = (GrB_Index*)malloc(sizeof(GrB_Index) * A2_pos[A1_dimension]);
   A_vals = (double*)malloc(sizeof(double) * A2_pos[A1_dimension]);
 
@@ -737,6 +838,107 @@ int taco_mxm(taco_tensor_t *A, taco_tensor_t *B, taco_tensor_t *C) {
   A2_pos[0] = 0;
 
   free(A2_nnz);
+#else
+  GrB_Index* restrict A2_nnz = 0;
+  A2_nnz = (GrB_Index*)malloc(sizeof(GrB_Index) * B1_dimension);
+
+  GrB_Index* restrict qw_index_list_all = 0;
+  qw_index_list_all = (GrB_Index*)malloc(sizeof(GrB_Index) * (C2_dimension * omp_get_max_threads()));
+  bool* restrict qw_already_set_all = calloc((C2_dimension * omp_get_max_threads()), sizeof(bool));
+
+  //#pragma omp parallel for schedule(runtime)
+  #pragma omp parallel for schedule(dynamic, 128) num_threads(nthreads)
+  for (GrB_Index qi = 0; qi < B1_dimension; qi++) {
+    GrB_Index qw_index_list_all_size = 0;
+    GrB_Index* restrict qw_index_list = qw_index_list_all + C2_dimension * omp_get_thread_num();
+    //GrB_Index* restrict qw_index_list = qw_index_list_all + qw_index_list_all_size * omp_get_thread_num();
+    bool* restrict qw_already_set = qw_already_set_all + C2_dimension * omp_get_thread_num();
+    for (GrB_Index qkB = B2_pos[qi]; qkB < B2_pos[(qi + 1)]; qkB++) {
+      GrB_Index qk = B2_crd[qkB];
+      for (GrB_Index qjC = C2_pos[qk]; qjC < C2_pos[(qk + 1)]; qjC++) {
+        GrB_Index qj = C2_crd[qjC];
+        if (!qw_already_set[qj]) {
+          qw_index_list[qw_index_list_all_size] = qj;
+          qw_already_set[qj] = 1;
+          qw_index_list_all_size++;
+        }
+      }
+    }
+    GrB_Index tqjA2_nnz_val = 0;
+    for (GrB_Index qw_index_locator = 0; qw_index_locator < qw_index_list_all_size; qw_index_locator++) {
+      GrB_Index qj = qw_index_list[qw_index_locator];
+      tqjA2_nnz_val += (GrB_Index)1;
+      qw_already_set[qj] = 0;
+    }
+    A2_nnz[qi] = tqjA2_nnz_val;
+  }
+
+  free(qw_index_list_all);
+  free(qw_already_set_all);
+
+  A2_pos = (GrB_Index*)malloc(sizeof(GrB_Index) * (A1_dimension + 1));
+  A2_pos[0] = 0;
+  for (GrB_Index i = 0; i < A1_dimension; i++) {
+    A2_pos[i + 1] = A2_pos[i] + A2_nnz[i];
+  }
+  //std::cout << A2_pos[A1_dimension] << std::endl;
+  A2_crd = (GrB_Index*)malloc(sizeof(GrB_Index) * A2_pos[A1_dimension]);
+  A_vals = (double*)malloc(sizeof(double) * A2_pos[A1_dimension]);
+
+  double* restrict w_all = 0;
+  GrB_Index* restrict w_index_list_all = 0;
+  w_index_list_all = (GrB_Index*)malloc(sizeof(GrB_Index) * (C2_dimension * omp_get_max_threads()));
+  bool* restrict w_already_set_all = calloc((C2_dimension * omp_get_max_threads()), sizeof(bool));
+  w_all = (double*)malloc(sizeof(double) * (C2_dimension * omp_get_max_threads()));
+
+  //#pragma omp parallel for schedule(runtime)
+  #pragma omp parallel for schedule(dynamic, 128) num_threads(nthreads)
+  for (GrB_Index i = 0; i < B1_dimension; i++) {
+    GrB_Index w_index_list_all_size = 0;
+    double* restrict w = w_all + C2_dimension * omp_get_thread_num();
+    GrB_Index* restrict w_index_list = w_index_list_all + C2_dimension * omp_get_thread_num();
+    //GrB_Index* restrict w_index_list = w_index_list_all + w_index_list_all_size * omp_get_thread_num();
+    bool* restrict w_already_set = w_already_set_all + C2_dimension * omp_get_thread_num();
+    for (GrB_Index kB = B2_pos[i]; kB < B2_pos[(i + 1)]; kB++) {
+      GrB_Index k = B2_crd[kB];
+      for (GrB_Index jC = C2_pos[k]; jC < C2_pos[(k + 1)]; jC++) {
+        GrB_Index j = C2_crd[jC];
+        if (!w_already_set[j]) {
+          w[j] = B_vals[kB] + C_vals[jC];
+          //w[j] = B_vals[kB] * C_vals[jC];
+          w_index_list[w_index_list_all_size] = j;
+          w_already_set[j] = 1;
+          w_index_list_all_size++;
+        }
+        else {
+          w[j] = fmin(w[j], B_vals[kB] + C_vals[jC]);
+          //w[j] = w[j] + B_vals[kB] * C_vals[jC];
+        }
+      }
+    }
+    //qsort(w_index_list, w_index_list_all_size, sizeof(GrB_Index), cmp);
+
+    for (GrB_Index w_index_locator = 0; w_index_locator < w_index_list_all_size; w_index_locator++) {
+      GrB_Index j = w_index_list[w_index_locator];
+      GrB_Index pA2 = A2_pos[i];
+      A2_pos[i] = A2_pos[i] + 1;
+      A2_crd[pA2] = j;
+      A_vals[pA2] = w[j];
+      w_already_set[j] = 0;
+    }
+  }
+
+  free(w_index_list_all);
+  free(w_already_set_all);
+  free(w_all);
+
+  for (GrB_Index p = 0; p < A1_dimension; p++) {
+    A2_pos[A1_dimension - p] = A2_pos[((A1_dimension - p) - 1)];
+  }
+  A2_pos[0] = 0;
+
+  free(A2_nnz);
+#endif
 
   A->indices[1][0] = (uint8_t*)(A2_pos);
   A->indices[1][1] = (uint8_t*)(A2_crd);
@@ -744,6 +946,128 @@ int taco_mxm(taco_tensor_t *A, taco_tensor_t *B, taco_tensor_t *C) {
   return 0;
 }
 
+int taco_mxm_bool(taco_tensor_t *A, taco_tensor_t *B, taco_tensor_t *C) {
+  GrB_Index A1_dimension = (GrB_Index)(A->dimensions[0]);
+  GrB_Index* restrict A2_pos = (GrB_Index*)(A->indices[1][0]);
+  GrB_Index* restrict A2_crd = (GrB_Index*)(A->indices[1][1]);
+  bool* restrict A_vals = (bool*)(A->vals);
+  GrB_Index B1_dimension = (GrB_Index)(B->dimensions[0]);
+  GrB_Index* restrict B2_pos = (GrB_Index*)(B->indices[1][0]);
+  GrB_Index* restrict B2_crd = (GrB_Index*)(B->indices[1][1]);
+  bool* restrict B_vals = (bool*)(B->vals);
+  GrB_Index C1_dimension = (GrB_Index)(C->dimensions[0]);
+  GrB_Index C2_dimension = (GrB_Index)(C->dimensions[1]);
+  GrB_Index* restrict C2_pos = (GrB_Index*)(C->indices[1][0]);
+  GrB_Index* restrict C2_crd = (GrB_Index*)(C->indices[1][1]);
+  bool* restrict C_vals = (bool*)(C->vals);
+
+  GrB_Index* restrict A2_nnz = 0;
+  A2_nnz = (GrB_Index*)malloc(sizeof(GrB_Index) * B1_dimension);
+
+  GrB_Index* restrict qw_index_list_all = 0;
+  qw_index_list_all = (GrB_Index*)malloc(sizeof(GrB_Index) * (C2_dimension * omp_get_max_threads()));
+  bool* restrict qw_already_set_all = calloc((C2_dimension * omp_get_max_threads()), sizeof(bool));
+
+  //#pragma omp parallel for schedule(runtime)
+  #pragma omp parallel for schedule(dynamic, 128) num_threads(nthreads)
+  for (GrB_Index qi = 0; qi < B1_dimension; qi++) {
+    GrB_Index qw_index_list_all_size = 0;
+    GrB_Index* restrict qw_index_list = qw_index_list_all + C2_dimension * omp_get_thread_num();
+    //GrB_Index* restrict qw_index_list = qw_index_list_all + qw_index_list_all_size * omp_get_thread_num();
+    bool* restrict qw_already_set = qw_already_set_all + C2_dimension * omp_get_thread_num();
+    for (GrB_Index qkB = B2_pos[qi]; qkB < B2_pos[(qi + 1)]; qkB++) {
+      GrB_Index qk = B2_crd[qkB];
+      for (GrB_Index qjC = C2_pos[qk]; qjC < C2_pos[(qk + 1)]; qjC++) {
+        GrB_Index qj = C2_crd[qjC];
+        if (!qw_already_set[qj]) {
+          qw_index_list[qw_index_list_all_size] = qj;
+          qw_already_set[qj] = 1;
+          qw_index_list_all_size++;
+        }
+      }
+    }
+    GrB_Index tqjA2_nnz_val = 0;
+    for (GrB_Index qw_index_locator = 0; qw_index_locator < qw_index_list_all_size; qw_index_locator++) {
+      GrB_Index qj = qw_index_list[qw_index_locator];
+      tqjA2_nnz_val += (GrB_Index)1;
+      qw_already_set[qj] = 0;
+    }
+    A2_nnz[qi] = tqjA2_nnz_val;
+  }
+
+  free(qw_index_list_all);
+  free(qw_already_set_all);
+
+  A2_pos = (GrB_Index*)malloc(sizeof(GrB_Index) * (A1_dimension + 1));
+  A2_pos[0] = 0;
+  for (GrB_Index i = 0; i < A1_dimension; i++) {
+    A2_pos[i + 1] = A2_pos[i] + A2_nnz[i];
+  }
+  //std::cout << A2_pos[A1_dimension] << std::endl;
+  A2_crd = (GrB_Index*)malloc(sizeof(GrB_Index) * A2_pos[A1_dimension]);
+  A_vals = (bool*)malloc(sizeof(bool) * A2_pos[A1_dimension]);
+
+  bool* restrict w_all = 0;
+  GrB_Index* restrict w_index_list_all = 0;
+  w_index_list_all = (GrB_Index*)malloc(sizeof(GrB_Index) * (C2_dimension * omp_get_max_threads()));
+  bool* restrict w_already_set_all = calloc((C2_dimension * omp_get_max_threads()), sizeof(bool));
+  w_all = (bool*)malloc(sizeof(bool) * (C2_dimension * omp_get_max_threads()));
+
+  //#pragma omp parallel for schedule(runtime)
+  #pragma omp parallel for schedule(dynamic, 128) num_threads(nthreads)
+  for (GrB_Index i = 0; i < B1_dimension; i++) {
+    GrB_Index w_index_list_all_size = 0;
+    bool* restrict w = w_all + C2_dimension * omp_get_thread_num();
+    GrB_Index* restrict w_index_list = w_index_list_all + C2_dimension * omp_get_thread_num();
+    //GrB_Index* restrict w_index_list = w_index_list_all + w_index_list_all_size * omp_get_thread_num();
+    bool* restrict w_already_set = w_already_set_all + C2_dimension * omp_get_thread_num();
+    for (GrB_Index kB = B2_pos[i]; kB < B2_pos[(i + 1)]; kB++) {
+      GrB_Index k = B2_crd[kB];
+      for (GrB_Index jC = C2_pos[k]; jC < C2_pos[(k + 1)]; jC++) {
+        GrB_Index j = C2_crd[jC];
+        if (!w_already_set[j]) {
+          w[j] = B_vals[kB] && C_vals[jC];
+          //w[j] = B_vals[kB] * C_vals[jC];
+          w_index_list[w_index_list_all_size] = j;
+          w_already_set[j] = 1;
+          w_index_list_all_size++;
+        }
+        else {
+          w[j] = w[j] || B_vals[kB] && C_vals[jC];
+          //w[j] = w[j] + B_vals[kB] * C_vals[jC];
+        }
+      }
+    }
+    //qsort(w_index_list, w_index_list_all_size, sizeof(GrB_Index), cmp);
+
+    for (GrB_Index w_index_locator = 0; w_index_locator < w_index_list_all_size; w_index_locator++) {
+      GrB_Index j = w_index_list[w_index_locator];
+      GrB_Index pA2 = A2_pos[i];
+      A2_pos[i] = A2_pos[i] + 1;
+      A2_crd[pA2] = j;
+      A_vals[pA2] = w[j];
+      w_already_set[j] = 0;
+    }
+  }
+
+  free(w_index_list_all);
+  free(w_already_set_all);
+  free(w_all);
+
+  for (GrB_Index p = 0; p < A1_dimension; p++) {
+    A2_pos[A1_dimension - p] = A2_pos[((A1_dimension - p) - 1)];
+  }
+  A2_pos[0] = 0;
+
+  free(A2_nnz);
+
+  A->indices[1][0] = (uint8_t*)(A2_pos);
+  A->indices[1][1] = (uint8_t*)(A2_crd);
+  A->vals = (uint8_t*)A_vals;
+  return 0;
+}
+
+#if 0
 #define TACO_MIN(_a,_b) ((_a) < (_b) ? (_a) : (_b))
 
 int taco_extract(taco_tensor_t *A, taco_tensor_t *B, taco_tensor_t *I, taco_tensor_t *J) {
@@ -856,6 +1180,17 @@ int taco_extract(taco_tensor_t *A, taco_tensor_t *B, taco_tensor_t *I, taco_tens
   A->vals = (uint8_t*)A_vals;
   return 0;
 }
+#endif
+
+ir::Expr orImpl(const std::vector<ir::Expr>& v) {
+  return ir::Or::make(v[0], v[1]);
+}
+Func OrOp("or", orImpl, {Annihilator(true), Identity(false), Commutative(), Associative()});
+
+ir::Expr andImpl(const std::vector<ir::Expr>& v) {
+  return ir::And::make(v[0], v[1]);
+}
+Func AndOp("and", andImpl, {Annihilator(false), Identity(true), Commutative(), Associative()});
 
 ir::Expr addImpl(const std::vector<ir::Expr>& v) {
   return ir::Add::make(v[0], v[1]);
@@ -877,6 +1212,7 @@ struct MaskAlgebra {
 };
 Func MaskOp("mask", maskImpl, MaskAlgebra());
 
+#if 0
 ir::Expr selectImpl(const std::vector<ir::Expr>& v) {
   return v[1];
 }
@@ -890,6 +1226,7 @@ struct SelectAlgebra {
     return Intersect(Complement(r[0]), r[1]);
   }
 };
+#endif
 
 class BitmapModeFormat : public ModeFormatImpl {
 public:
@@ -950,7 +1287,7 @@ static void bench_mxv_taco(benchmark::State& state) {
 #if 0
   //std::map<std::vector<int>, FuncBodyGenerator> def;
   //def[{1,0,0}] = selectImpl;
-  Func SelectOp("select", selectImpl, SelectAlgebra(), {{{0, 2}, defaultImpl}});
+  //Func SelectOp("select", selectImpl, SelectAlgebra(), {{{0, 2}, defaultImpl}});
   //Func SelectOp("select", selectImpl);
 
   taco_set_num_threads(nthreads);
@@ -960,14 +1297,18 @@ static void bench_mxv_taco(benchmark::State& state) {
     IndexVar i, j;
     Format dv({Dense});
     Format bmv({Bitmap});
-    Tensor<double> A("A", {fixture.M, fixture.N}, CSR, std::numeric_limits<double>::infinity());
-    Tensor<double> y("y", {fixture.M}, bmv, std::numeric_limits<double>::infinity());
-    Tensor<double> x("x", {fixture.N}, bmv, std::numeric_limits<double>::infinity());
+    //Tensor<double> A("A", {fixture.M, fixture.N}, CSR, std::numeric_limits<double>::infinity());
+    //Tensor<double> y("y", {fixture.M}, bmv, std::numeric_limits<double>::infinity());
+    //Tensor<double> x("x", {fixture.N}, bmv, std::numeric_limits<double>::infinity());
+    Tensor<bool> A("A", {fixture.M, fixture.N}, CSR);
+    Tensor<bool> y("y", {fixture.M}, bmv);
+    Tensor<bool> x("x", {fixture.N}, bmv);
     Tensor<bool> m("m", {fixture.M}, dv);
+    y(i) = MaskOp(Reduction(OrOp(), j, AndOp(A(i,j), x(j))), m(i));
+    //y(i) = MaskOp(Reduction(MinOp(), j, AddOp(A(i,j), x(j))), m(i));
     //y(i) = x(i);
     //y(i) = SelectOp(m(i), Reduction(MinOp(), j, AddOp(A(i,j), x(j))), x(i));
     //y(i) = MaskOp(Reduction(MinOp(), j, AddOp(A(i,j), x(j))), x(i));
-    y(i) = MaskOp(Reduction(MinOp(), j, AddOp(A(i,j), x(j))), m(i));
     //y(i) = Reduction(MinOp(), j, AddOp(A(i,j), x(j)));
     //y(i) = MinOp(Reduction(MinOp(), j, AddOp(A(i,j), x(j))), x(i));
     //y(i) = MinOp(MaskOp(Reduction(MinOp(), j, AddOp(A(i,j), x(j))), x(i)), x(i));
@@ -1001,11 +1342,21 @@ static void bench_mxv_taco(benchmark::State& state) {
 
     state.ResumeTiming();
 
-    taco_mxv(&y, fixture.A_taco_t, fixture.x_taco_t, fixture.m_taco_t);
+    if (fixture.is_bool) {
+      taco_mxv_bool(&y, fixture.A_taco_t, fixture.x_taco_t, fixture.m_taco_t);
+    } else {
+      taco_mxv_trop(&y, fixture.A_taco_t, fixture.x_taco_t, fixture.m_taco_t);
+    }
   }
   if (fixture.validate && fixture.y_gb) {
     auto y_gb = to_bitmap_taco_tensor(&fixture.y_gb);
-    std::cout << "comparing mxv: " << compare_double_bitmap(get_bitmap_arrays(y), get_bitmap_arrays(*y_gb)) << std::endl;
+    std::cout << "comparing mxv: ";
+    if (fixture.is_bool) {
+      std::cout << compare_bool_bitmap(get_bitmap_arrays(y), get_bitmap_arrays(*y_gb));
+    } else {
+      std::cout << compare_double_bitmap(get_bitmap_arrays(y), get_bitmap_arrays(*y_gb));
+    }
+    std::cout << std::endl;
     fixture.y_gb = nullptr;
   }
   free_bitmap_taco_tensor(y);
@@ -1024,16 +1375,27 @@ static void bench_mxm_taco(benchmark::State& state) {
 
     state.ResumeTiming();
 
-    taco_mxm(&C, fixture.A_taco_t, fixture.A_taco_t);
+    if (fixture.is_bool) {
+      taco_mxm_bool(&C, fixture.A_taco_t, fixture.A_taco_t);
+    } else {
+      taco_mxm_trop(&C, fixture.A_taco_t, fixture.A_taco_t);
+    }
   }
   if (fixture.validate && fixture.C_gb) {
     auto C_gb = to_csr_taco_tensor(&fixture.C_gb);
-    std::cout << "comparing mxm: " << compare_double_csr(get_csr_arrays(C), get_csr_arrays(*C_gb)) << std::endl;
+    std::cout << "comparing mxm: ";
+    if (fixture.is_bool) {
+      std::cout << compare_bool_csr(get_csr_arrays(C), get_csr_arrays(*C_gb));
+    } else {
+      std::cout << compare_double_csr(get_csr_arrays(C), get_csr_arrays(*C_gb));
+    }
+    std::cout << std::endl;
     fixture.C_gb = nullptr;
   }
   free_csr_taco_tensor(C);
 }
 
+#if 0
 static void bench_extract_taco(benchmark::State& state) {
   if (!fixture.A_taco_t) {
     fixture.A_taco_t = to_csr_taco_tensor(&fixture.A_gb);
@@ -1051,6 +1413,7 @@ static void bench_extract_taco(benchmark::State& state) {
   //std::cout << ((GrB_Index*)(B.indices[1][0]))[B.dimensions[0]] << std::endl;
   free_csr_taco_tensor(B);
 }
+#endif
 
 GRAPHBLAS_BENCH(bench_mxv_suitesparse, 1000);
 GRAPHBLAS_BENCH(bench_mxm_suitesparse, 25);
