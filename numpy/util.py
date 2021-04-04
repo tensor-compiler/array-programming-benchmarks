@@ -5,7 +5,6 @@ import os
 import glob
 import numpy
 import cv2
-import matplotlib.pyplot as plt
 
 # Get the path to the directory holding random tensors. Error out
 # if this isn't set.
