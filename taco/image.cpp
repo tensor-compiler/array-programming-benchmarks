@@ -50,7 +50,7 @@ struct xorAndAlgebra {
   IterationAlgebra operator()(const std::vector<IndexExpr>& regions) {
     auto m1 = Intersect(regions[0], regions[2]);
     auto m2 = Intersect(regions[1], regions[2]);
-    auto noIntersect = Complement(Intersect(m1, m2));
+    auto noIntersect = Complement(Intersect(Intersect(regions[0], regions[1]), regions[2]));
     return Intersect(noIntersect, Union(m1, m2));
   }
 };

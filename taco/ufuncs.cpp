@@ -494,7 +494,7 @@ struct SuiteSparseTensors {
 };
 SuiteSparseTensors ssTensors;
 
-static void bench_suitesparse_ufunc(benchmark::State& state, Func op) {
+static void bench_suitesparse_ufunc(benchmark::State& state, Func op, int fill_value = 0) {
   // Counters must be present in every run to get reported to the CSV.
   state.counters["dimx"] = 0;
   state.counters["dimy"] = 0;
@@ -527,7 +527,7 @@ static void bench_suitesparse_ufunc(benchmark::State& state, Func op) {
 
   for (auto _ : state) {
     state.PauseTiming();
-    Tensor<int64_t> result("result", ssTensor.getDimensions(), ssTensor.getFormat());
+    Tensor<int64_t> result("result", ssTensor.getDimensions(), ssTensor.getFormat(), fill_value);
     result.setAssembleWhileCompute(true);
     IndexVar i, j;
     result(i, j) = op(ssTensor(i, j), other(i, j));
@@ -548,3 +548,4 @@ static void bench_suitesparse_ufunc(benchmark::State& state, Func op) {
 TACO_BENCH_ARGS(bench_suitesparse_ufunc, xor, xorOp);
 TACO_BENCH_ARGS(bench_suitesparse_ufunc, ldExp, ldExp);
 TACO_BENCH_ARGS(bench_suitesparse_ufunc, rightShift, rightShift);
+TACO_BENCH_ARGS(bench_suitesparse_ufunc, pow1Comp, pow1Comp, 1);
