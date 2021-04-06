@@ -3,7 +3,7 @@ from scipy.sparse import random, csr_matrix
 import sparse
 import pytest
 import os
-from util import TensorCollectionFROSTT, PydataTensorShifter, TensorCollectionSuiteSparse, ScipyTensorShifter, PydataMatrixMarketTensorLoader, ScipyMatrixMarketTensorLoader, VALIDATION_OUTPUT_PATH, PydataSparseTensorDumper, SuiteSparseTensor, safeCastPydataTensorToInts
+from util import TensorCollectionFROSTT, PydataTensorShifter, TensorCollectionSuiteSparse, ScipyTensorShifter, PydataMatrixMarketTensorLoader, ScipyMatrixMarketTensorLoader, VALIDATION_OUTPUT_PATH, PydataSparseTensorDumper, SuiteSparseTensor, safeCastPydataTensorToInts, RandomPydataSparseTensorLoader
 
 # TODO (rohany): Ask hameer about this. pydata/sparse isn't happy when
 #  given this ufunc to evaluate.
@@ -34,6 +34,16 @@ def bench_pydata_ufunc_sparse(tacoBench, dim, ufunc):
         C = ufunc(A, B)
     tacoBench(bench)
 
+@pytest.mark.parametrize("dim", [1000, 2500, 5000, 10000, 20000, 40000])
+def bench_pydata_ufunc_fused(tacoBench, dim):
+    loader = RandomPydataSparseTensorLoader()
+    matrix = safeCastPydataTensorToInts(loader.random((dim, dim), 0.01))
+    matrix1 = safeCastPydataTensorToInts(loader.random((dim, dim), 0.01, variant=1))
+    matrix2 = safeCastPydataTensorToInts(loader.random((dim, dim), 0.01, variant=2))
+    def bench():
+        result = numpy.logical_and(numpy.logical_xor(matrix, matrix1), matrix2)
+        return result
+    tacoBench(bench)
 
 def import_tensor(filename, dim):
     print(filename)
@@ -92,14 +102,35 @@ def bench_pydata_import_ufunc_sparse(tacoBench, dim, ufunc):
 def ufunc_bench_key(tensorName, funcName):
     return tensorName + "-" + funcName + "-numpy"
 
+# UfuncInputCache attempts to avoid reading the same tensor from disk multiple
+# times in a benchmark run.
+class UfuncInputCache:
+    def __init__(self):
+        self.lastLoaded = None
+        self.lastName = None
+        self.tensor = None
+        self.other = None
+
+    def load(self, tensor, suiteSparse):
+        if self.lastName == str(tensor):
+            return self.tensor, self.other
+        else:
+            if suiteSparse:
+                self.lastLoaded = tensor.load(PydataMatrixMarketTensorLoader())
+            else:
+                self.lastLoaded = tensor.load()
+            self.lastName  = str(tensor)
+            self.tensor = safeCastPydataTensorToInts(self.lastLoaded)
+            self.other = PydataTensorShifter().shiftLastMode(self.tensor)
+            return self.tensor, self.other
+inputCache = UfuncInputCache()
+
 # Run benchmarks against the FROSTT collection.
 FROSTTTensors = TensorCollectionFROSTT()
 @pytest.mark.parametrize("tensor", FROSTTTensors.getTensors())
-@pytest.mark.parametrize("ufunc", [numpy.logical_xor, numpy.ldexp, numpy.right_shift])
+@pytest.mark.parametrize("ufunc", [numpy.power, numpy.logical_xor, numpy.ldexp, numpy.right_shift])
 def bench_pydata_frostt_ufunc_sparse(tacoBench, tensor, ufunc):
-    frTensor = safeCastPydataTensorToInts(tensor.load())
-    shifter = PydataTensorShifter()
-    other = shifter.shiftLastMode(frTensor)
+    frTensor, other = inputCache.load(tensor, False)
     def bench():
         c = ufunc(frTensor, other)
         return c
@@ -114,13 +145,35 @@ def bench_pydata_frostt_ufunc_sparse(tacoBench, tensor, ufunc):
     else:
         tacoBench(bench, extra_info)
 
+fusedFuncs = [
+        lambda a, b, c: numpy.logical_and(numpy.logical_xor(a, b), c),
+        lambda a, b, c: numpy.logical_or(numpy.logical_xor(a, b), c),
+        lambda a, b, c: numpy.logical_xor(numpy.logical_xor(a, b), c),
+]
+fusedFuncNames = [
+        "xorAndFused", 
+        "xorOrFused",
+        "xorXorFused", 
+]
+fusedFuncs = zip(fusedFuncs, fusedFuncNames)
+@pytest.mark.parametrize("tensor", FROSTTTensors.getTensors())
+@pytest.mark.parametrize("func", fusedFuncs, ids=fusedFuncNames)
+def bench_pydata_frostt_fused_ufunc_sparse(tacoBench, tensor, func):
+    frTensor, other = inputCache.load(tensor, False)
+    third = PydataTensorShifter().shiftLastMode(other)
+    def bench():
+        c = func[0](frTensor, other, third)
+        return c
+    extra_info = dict()
+    extra_info['tensor_str'] = str(tensor)
+    extra_info['func_str'] = str(func[1])
+    tacoBench(bench, extra_info)
+
 # Run benchmarks against the SuiteSparse collection.
-@pytest.mark.parametrize("ufunc", [numpy.logical_xor, numpy.ldexp, numpy.right_shift])
+@pytest.mark.parametrize("ufunc", [numpy.power, numpy.logical_xor, numpy.ldexp, numpy.right_shift])
 def bench_pydata_suitesparse_ufunc_sparse(tacoBench, ufunc):
     tensor = SuiteSparseTensor(os.getenv('SUITESPARSE_TENSOR_PATH'))
-    ssTensor = safeCastPydataTensorToInts(tensor.load(PydataMatrixMarketTensorLoader()))
-    shifter = PydataTensorShifter()
-    other = shifter.shiftLastMode(ssTensor)
+    ssTensor, other = inputCache.load(tensor, True)
     def bench():
         c = ufunc(ssTensor, other)
         return c

@@ -49,7 +49,8 @@ std::string getTacoTensorPath();
 std::string getValidationOutputPath();
 // cleanPath ensures that the input path ends with "/".
 std::string cleanPath(std::string path);
-taco::TensorBase loadRandomTensor(std::string name, std::vector<int> dims, float sparsity, taco::Format format);
+taco::TensorBase loadRandomTensor(std::string name, std::vector<int> dims, float sparsity, taco::Format format, int variant=0);
+taco::TensorBase loadImageTensor(std::string name, int num, taco::Format format, float threshold, int variant=0);
 
 template<typename T>
 taco::Tensor<T> castToType(std::string name, taco::Tensor<double> tensor) {

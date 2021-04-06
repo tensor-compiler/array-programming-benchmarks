@@ -13,6 +13,7 @@
 
 using namespace taco;
 
+// XOR Op and Algebra
 struct GeneralAdd {
   ir::Expr operator()(const std::vector<ir::Expr> &v) {
     taco_iassert(v.size() >= 1) << "Add operator needs at least one operand";
@@ -33,6 +34,19 @@ struct xorAlgebra {
   }
 };
 
+struct andAlgebra {
+  IterationAlgebra operator()(const std::vector<IndexExpr>& regions) {
+    return Intersect(regions[0], regions[1]);
+  }
+};
+
+struct orAlgebra {
+  IterationAlgebra operator()(const std::vector<IndexExpr>& regions) {
+    return Union(regions[0], regions[1]);
+  }
+};
+
+// Right shift op and Algebra
 struct RightShift{
   ir::Expr operator()(const std::vector<ir::Expr> &v) {
     if (v.size() == 1)
@@ -52,6 +66,7 @@ struct leftIncAlgebra {
   }
 };
 
+// LdExp Op (algbra same as right shift)
 struct Ldexp {
   ir::Expr operator()(const std::vector<ir::Expr> &v) {
     if (v.size() == 1)
@@ -62,6 +77,48 @@ struct Ldexp {
       shift = ir::BinOp::make(shift, v[idx], "", "* pow(2.0, ", ")");
     }
     return shift;
+  }
+};
+
+// Power op and algebra (X U Y^(c) if 1 compressed out, X^(c) U Y if 0 compressed out)
+struct Power {
+  ir::Expr operator()(const std::vector<ir::Expr> &v) {
+    if (v.size() == 1)
+      return v[0];
+
+    ir::Expr pow = ir::BinOp::make(v[0], v[1], "pow(", ", ", ")");
+    for (size_t idx = 2; idx < v.size(); ++idx) {
+      pow = ir::BinOp::make(pow, v[idx], "pow(", ", ", ")");
+    }
+    return pow;
+  }
+};
+
+struct unionRightCompAlgebra {
+  IterationAlgebra operator()(const std::vector<IndexExpr>& regions) {
+    return Union(Intersect(regions[0], regions[1]), Complement(regions[1]));
+  }
+};
+
+struct rightIncAlgebra {
+  IterationAlgebra operator()(const std::vector<IndexExpr>& regions) {
+    return Union(Intersect(regions[0], regions[1]), regions[1]);
+  }
+};
+
+
+struct compAlgebra {
+  IterationAlgebra operator()(const std::vector<IndexExpr>& regions) {
+    return Complement(regions[0]);
+  }
+};
+
+struct nestedXorAlgebra {
+  IterationAlgebra operator()(const std::vector<IndexExpr> & regions) {
+    IterationAlgebra intersect2 = Union(Intersect(regions[2], Union(regions[0], regions[1])), Intersect(regions[0], Union(regions[2], regions[1])));
+    IterationAlgebra intersect3 = Intersect(Intersect(regions[0], regions[1]), regions[2]);
+    IterationAlgebra unionComplement = Complement(Union(Union(regions[0], regions[1]), regions[2]));
+    return Union(Complement(Union(intersect2, unionComplement)), intersect3);
   }
 };
 
@@ -124,9 +181,6 @@ static void bench_ufunc_sparse(benchmark::State& state, ExtraArgs&&... extra_arg
   A.pack(); B.pack();
   
   // Output tensors to file
-  // FIXME (owhsu): Why for dim == 10, does the CSR dense mode repeat indices?
-  //                This is causing a problem for the format of csr_matrix(...) in pytest
-  //                See <repo>/data/* for examples
   printTensor(A, "./data", __FUNCTION__ , dim, extra_args...);
   printTensor(B, "./data", __FUNCTION__ , dim, extra_args...);
 
@@ -155,13 +209,43 @@ static void applyBenchSizes(benchmark::internal::Benchmark* b) {
 TACO_BENCH_ARGS(bench_ufunc_sparse, xor_0.01, 0.01, "xor")->Apply(applyBenchSizes);
 TACO_BENCH_ARGS(bench_ufunc_sparse, rightShift_0.01, 0.01, ">>")->Apply(applyBenchSizes);
 
+Func ldExp("ldexp", Ldexp(), leftIncAlgebra());
+Func rightShift("right_shift", RightShift(), leftIncAlgebra());
+Func xorOp("logical_xor", GeneralAdd(), xorAlgebra());
+Func andOp("logical_and", GeneralAdd(), andAlgebra());
+Func orOp("logical_or", GeneralAdd(), orAlgebra());
+Func nestedXorOp("fused_xor", GeneralAdd(), nestedXorAlgebra());
+Func pow0Comp("power_0compression", Power(), unionRightCompAlgebra());
+Func pow1Comp("power_1compression", Power(), rightIncAlgebra());
+static void bench_ufunc_fused(benchmark::State& state, const Format& f) {
+  int dim = state.range(0);
+  auto sparsity = 0.01;
+  Tensor<int64_t> matrix = castToType<int64_t>("A", loadRandomTensor("A", {dim, dim}, sparsity, f));
+  Tensor<int64_t> matrix1 = castToType<int64_t>("B", loadRandomTensor("B", {dim, dim}, sparsity, f, 1 /* variant */));
+  Tensor<int64_t> matrix2 = castToType<int64_t>("C", loadRandomTensor("C", {dim, dim}, sparsity, f, 2 /* variant */));
+
+  for (auto _ : state) {
+    state.PauseTiming();
+    Tensor<int64_t> result("result", {dim, dim}, f);
+    IndexVar i("i"), j("j");
+    result(i, j) = andOp(xorOp(matrix(i, j), matrix1(i, j)), matrix2(i, j));
+    result.setAssembleWhileCompute(true);
+    result.compile();
+    state.ResumeTiming();
+    result.assemble();
+    result.compute();
+  }
+}
+ TACO_BENCH_ARGS(bench_ufunc_fused, csr, CSR)
+   ->ArgsProduct({{1000, 2500, 5000, 10000, 20000, 40000}});
+
 // UfuncInputCache is a cache for the input to ufunc benchmarks. These benchmarks
 // operate on a tensor loaded from disk and the same tensor shifted slightly. Since
 // these operations are run multiple times, we can save alot in benchmark startup
 // time from caching these inputs.
 struct UfuncInputCache {
   template<typename U>
-  std::pair<taco::Tensor<int64_t>, taco::Tensor<int64_t>> getUfuncInput(std::string path, U format) {
+  std::pair<taco::Tensor<int64_t>, taco::Tensor<int64_t>> getUfuncInput(std::string path, U format, bool countNNZ = false, bool includeThird = false) {
     // See if the paths match.
     if (this->lastPath == path) {
       // TODO (rohany): Not worrying about whether the format was the same as what was asked for.
@@ -175,6 +259,15 @@ struct UfuncInputCache {
     this->lastPath = path;
     this->inputTensor = castToType<int64_t>("A", this->lastLoaded);
     this->otherTensor = shiftLastMode<int64_t, int64_t>("B", this->inputTensor);
+    if (countNNZ) {
+      this->nnz = 0;
+      for (auto& it : iterate<int64_t>(this->inputTensor)) {
+        this->nnz++;
+      }
+    }
+    if (includeThird) {
+      this->thirdTensor = shiftLastMode<int64_t, int64_t>("C", this->otherTensor);
+    }
     return std::make_pair(this->inputTensor, this->otherTensor);
   }
 
@@ -183,6 +276,8 @@ struct UfuncInputCache {
 
   taco::Tensor<int64_t> inputTensor;
   taco::Tensor<int64_t> otherTensor;
+  taco::Tensor<int64_t> thirdTensor;
+  int64_t nnz;
 };
 UfuncInputCache inputCache;
 
@@ -190,7 +285,7 @@ std::string ufuncBenchKey(std::string tensorName, std::string funcName) {
   return tensorName + "-" + funcName + "-taco";
 }
 
-static void bench_frostt_ufunc(benchmark::State& state, std::string tnsPath, Func op) {
+static void bench_frostt_ufunc(benchmark::State& state, std::string tnsPath, Func op, int fill_value = 0) {
   auto frosttTensorPath = getTacoTensorPath();
   frosttTensorPath += "FROSTT/";
   frosttTensorPath += tnsPath;
@@ -206,7 +301,7 @@ static void bench_frostt_ufunc(benchmark::State& state, std::string tnsPath, Fun
 
   for (auto _ : state) {
     state.PauseTiming();
-    Tensor<int64_t> result("result", frosttTensor.getDimensions(), frosttTensor.getFormat());
+    Tensor<int64_t> result("result", frosttTensor.getDimensions(), frosttTensor.getFormat(), fill_value);
     result.setAssembleWhileCompute(true);
     switch (frosttTensor.getOrder()) {
       case 3: {
@@ -234,6 +329,7 @@ static void bench_frostt_ufunc(benchmark::State& state, std::string tnsPath, Fun
     result.compute();
 
     state.PauseTiming();
+
     if (auto validationPath = getValidationOutputPath(); validationPath != "") {
       auto key = ufuncBenchKey(tensorName, op.getName());
       auto outpath = validationPath + key + ".tns";
@@ -241,10 +337,6 @@ static void bench_frostt_ufunc(benchmark::State& state, std::string tnsPath, Fun
     }
   }
 }
-
-Func ldExp("ldexp", Ldexp(), leftIncAlgebra());
-Func rightShift("right_shift", RightShift(), leftIncAlgebra());
-Func xorOp("logical_xor", GeneralAdd(), xorAlgebra());
 
 #define FOREACH_FROSTT_TENSOR(__func__) \
   __func__(nips, "nips.tns") \
@@ -269,8 +361,119 @@ Func xorOp("logical_xor", GeneralAdd(), xorAlgebra());
   TACO_BENCH_ARGS(bench_frostt_ufunc, name/xor, path, xorOp); \
   TACO_BENCH_ARGS(bench_frostt_ufunc, name/ldExp, path, ldExp); \
   TACO_BENCH_ARGS(bench_frostt_ufunc, name/rightShift, path, rightShift); \
+  TACO_BENCH_ARGS(bench_frostt_ufunc, name/pow1Comp, path, pow1Comp, 1);\
+  //TACO_BENCH_ARGS(bench_frostt_ufunc, name/pow0Comp, path, pow0Comp, 0);     \
 
 FOREACH_FROSTT_TENSOR(DECLARE_FROSTT_UFUNC_BENCH)
+
+enum FusedUfuncOp {
+  XOR_AND = 1,
+  XOR_OR = 2,
+  XOR_XOR = 3,
+};
+
+static void bench_frostt_ufunc_fused(benchmark::State& state, std::string tnsPath, FusedUfuncOp op) {
+  auto frosttTensorPath = getTacoTensorPath();
+  frosttTensorPath += "FROSTT/";
+  frosttTensorPath += tnsPath;
+
+  auto pathSplit = taco::util::split(tnsPath, "/");
+  auto filename = pathSplit[pathSplit.size() - 1];
+  auto tensorName = taco::util::split(filename, ".")[0];
+  state.SetLabel(tensorName);
+
+  Tensor<int64_t> frosttTensor, other;
+  std::tie(frosttTensor, other) = inputCache.getUfuncInput(frosttTensorPath, Sparse, false /* countNNZ */, true /* includeThird */);
+  Tensor<int64_t> third = inputCache.thirdTensor;
+
+  for (auto _ : state) {
+    state.PauseTiming();
+    Tensor<int64_t> result("result", frosttTensor.getDimensions(), frosttTensor.getFormat());
+    result.setAssembleWhileCompute(true);
+    // We have to unfortunately perform this double nesting because for some reason
+    // I get a TACO generated code compilation error trying to lift the ufunc operation
+    // into lambda.
+    switch (frosttTensor.getOrder()) {
+      case 3: {
+        IndexVar i, j, k;
+        switch (op) {
+          case XOR_AND: {
+            result(i, j, k) = andOp(xorOp(frosttTensor(i, j, k), other(i, j, k)), third(i, j, k));
+            break;
+          }
+          case XOR_OR: {
+            result(i, j, k) = orOp(xorOp(frosttTensor(i, j, k), other(i, j, k)), third(i, j, k));
+            break;
+          }
+          case XOR_XOR: {
+            result(i, j, k) = nestedXorOp(frosttTensor(i, j, k), other(i, j, k), third(i, j, k));
+            break;
+          }
+          default:
+            state.SkipWithError("invalid fused op");
+            return;
+        }
+        break;
+      }
+      case 4: {
+        IndexVar i, j, k, l;
+        switch (op) {
+          case XOR_AND: {
+            result(i, j, k, l) = andOp(xorOp(frosttTensor(i, j, k, l), other(i, j, k, l)), third(i, j, k, l));
+            break;
+          }
+          case XOR_OR: {
+            result(i, j, k, l) = orOp(xorOp(frosttTensor(i, j, k, l), other(i, j, k, l)), third(i, j, k, l));
+            break;
+          }
+          case XOR_XOR: {
+            result(i, j, k, l) = nestedXorOp(frosttTensor(i, j, k, l), other(i, j, k, l), third(i, j, k, l));
+            break;
+          }
+          default:
+            state.SkipWithError("invalid fused op");
+            return;
+        }
+        break;
+      }
+      case 5: {
+        IndexVar i, j, k, l, m;
+        switch (op) {
+          case XOR_AND: {
+            result(i, j, k, l, m) = andOp(xorOp(frosttTensor(i, j, k, l, m), other(i, j, k, l, m)), third(i, j, k, l, m));
+            break;
+          }
+          case XOR_OR: {
+            result(i, j, k, l, m) = orOp(xorOp(frosttTensor(i, j, k, l, m), other(i, j, k, l, m)), third(i, j, k, l, m));
+            break;
+          }
+          case XOR_XOR: {
+            result(i, j, k, l, m) = nestedXorOp(frosttTensor(i, j, k, l, m), other(i, j, k, l, m), third(i, j, k, l, m));
+            break;
+          }
+          default:
+            state.SkipWithError("invalid fused op");
+            return;
+        }
+        break;
+      }
+      default:
+        state.SkipWithError("invalid tensor dimension");
+        return;
+    }
+    result.compile();
+    state.ResumeTiming();
+
+    result.compute();
+  }
+}
+
+#define DECLARE_FROSTT_FUSED_UFUNC_BENCH(name, path) \
+  TACO_BENCH_ARGS(bench_frostt_ufunc_fused, name/xorAndFused, path, XOR_AND); \
+  TACO_BENCH_ARGS(bench_frostt_ufunc_fused, name/xorOrFused, path, XOR_OR); \
+  TACO_BENCH_ARGS(bench_frostt_ufunc_fused, name/xorXorFused, path, XOR_XOR); \
+
+FOREACH_FROSTT_TENSOR(DECLARE_FROSTT_FUSED_UFUNC_BENCH)
 
 struct SuiteSparseTensors {
  SuiteSparseTensors() {
@@ -295,12 +498,14 @@ static void bench_suitesparse_ufunc(benchmark::State& state, Func op) {
   // Counters must be present in every run to get reported to the CSV.
   state.counters["dimx"] = 0;
   state.counters["dimy"] = 0;
-  if (ssTensors.tensors.size() == 0) {
+  state.counters["nnz"] = 0;
+
+  auto tensorPath = getEnvVar("SUITESPARSE_TENSOR_PATH");
+  if (tensorPath == "") {
     state.error_occurred();
     return;
   }
-  int tensorIdx = state.range(0);
-  auto tensorPath = ssTensors.tensors[tensorIdx];
+
   auto pathSplit = taco::util::split(tensorPath, "/");
   auto filename = pathSplit[pathSplit.size() - 1];
   auto tensorName = taco::util::split(filename, ".")[0];
@@ -308,16 +513,17 @@ static void bench_suitesparse_ufunc(benchmark::State& state, Func op) {
 
   taco::Tensor<int64_t> ssTensor, other;
   try {
-    std::tie(ssTensor, other) = inputCache.getUfuncInput(tensorPath, CSR);
+    std::tie(ssTensor, other) = inputCache.getUfuncInput(tensorPath, CSR, true /* countNNZ */);
   } catch (TacoException& e) {
     // Counters don't show up in the generated CSV if we used SkipWithError, so
     // just add in the label that this run is skipped.	  
-    state.SetLabel(tensorName+"-SKIPPED-FAILED-READ");
+    state.SetLabel(tensorName+"/SKIPPED-FAILED-READ");
     return;
   }
 
   state.counters["dimx"] = ssTensor.getDimension(0);
   state.counters["dimy"] = ssTensor.getDimension(1);
+  state.counters["nnz"] = inputCache.nnz;
 
   for (auto _ : state) {
     state.PauseTiming();
@@ -339,12 +545,6 @@ static void bench_suitesparse_ufunc(benchmark::State& state, Func op) {
   }
 }
 
-static void applySuiteSparse(benchmark::internal::Benchmark* b) {
-  for (int i = 0; i < ssTensors.tensors.size(); i++) {
-    b->Arg(i);
-  }
-}
-
-TACO_BENCH_ARGS(bench_suitesparse_ufunc, xor, xorOp)->Apply(applySuiteSparse);
-TACO_BENCH_ARGS(bench_suitesparse_ufunc, ldExp, ldExp)->Apply(applySuiteSparse);
-TACO_BENCH_ARGS(bench_suitesparse_ufunc, rightShift, rightShift)->Apply(applySuiteSparse);
+TACO_BENCH_ARGS(bench_suitesparse_ufunc, xor, xorOp);
+TACO_BENCH_ARGS(bench_suitesparse_ufunc, ldExp, ldExp);
+TACO_BENCH_ARGS(bench_suitesparse_ufunc, rightShift, rightShift);

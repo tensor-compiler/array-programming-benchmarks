@@ -20,8 +20,8 @@ def aggregateTacoBenches(folder, outfile, labelSet=None):
             with open(fname, 'r') as f:
                 # Discard the first 10 lines. This corresponds to the
                 # google-benchmark generated header.
-                for i in range(0, 10):
-                    f.readline()
+                # for i in range(0, 10):
+                #     f.readline()
                 # Open the rest of the file as a CSV.
                 reader = csv.reader(f)
                 # Attempt to read the header from CSV. If this fails,
@@ -33,14 +33,14 @@ def aggregateTacoBenches(folder, outfile, labelSet=None):
                     continue
                 # Find the column that contains label. We're going to skip
                 # entries that have a skip marker in the label.
-                labelIdx = header.index("label")
+                # labelIdx = header.index("label", 0)
                 if first:
                     writer.writerow(header)
                     first = False
                 for row in reader:
-                    if "SKIPPED" not in row[labelIdx]:
-                        validLabels.add(row[labelIdx])
-                        writer.writerow(row)
+                    # if "SKIPPED" not in row[labelIdx]:
+                    #     validLabels.add(row[labelIdx])
+                    writer.writerow(row)
     # Write out the set of valid labels.
     if labelSet is not None:
         with open(labelSet, 'w+') as validSet:

@@ -38,7 +38,7 @@ std::string cleanPath(std::string path) {
   return result;
 }
 
-std::string constructRandomTensorKey(std::vector<int> dims, float sparsity) {
+std::string constructRandomTensorKey(std::vector<int> dims, float sparsity, int variant) {
   auto path = getTacoTensorPath();
   std::stringstream result;
   result << path;
@@ -46,14 +46,44 @@ std::string constructRandomTensorKey(std::vector<int> dims, float sparsity) {
     result << "/";
   }
   result << "random/";
-  result << taco::util::join(dims, "x") << "-" << sparsity << ".tns";
+  if (variant == 0) {
+    result << taco::util::join(dims, "x") << "-" << sparsity << ".tns";
+  } else {
+    result << taco::util::join(dims, "x") << "-" << sparsity << "-" << variant << ".tns";
+  }
   return result.str();
 }
 
-taco::TensorBase loadRandomTensor(std::string name, std::vector<int> dims, float sparsity, taco::Format format) {
+taco::TensorBase loadRandomTensor(std::string name, std::vector<int> dims, float sparsity, taco::Format format, int variant) {
   // For now, just say that the python code must generate the random
   // tensor before use.
-  auto tensor = taco::read(constructRandomTensorKey(dims, sparsity), format, true);
+  auto tensor = taco::read(constructRandomTensorKey(dims, sparsity, variant), format, true);
+  tensor.setName(name);
+  return tensor;
+}
+
+std::string constructImageTensorKey(int num, int variant, float threshold) {
+  auto path = getTacoTensorPath();
+  std::stringstream result;
+  result << path;
+  if (path[path.size() - 1] != '/') {
+    result << "/";
+  }
+  result << "image/tensors/";
+  if (variant == 0) {
+    result << "image" << num  << "-" << threshold << ".tns";
+  } else if (variant == 3) {
+    result << "image" << num << "-" << variant << ".tns";
+  } else {
+    result << "image" << num << "-" << threshold << "-" << variant << ".tns";
+  }
+  return result.str();
+}
+
+taco::TensorBase loadImageTensor(std::string name, int num, taco::Format format, float threshold, int variant) {
+  // For now, just say that the python code must generate the random
+  // tensor before use.
+  auto tensor = taco::read(constructImageTensorKey(num, variant, threshold), format, true);
   tensor.setName(name);
   return tensor;
 }

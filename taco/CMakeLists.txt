@@ -15,7 +15,7 @@ if(GRAPHBLAS)
   add_subdirectory(suitesparse)
 endif(GRAPHBLAS)
 
-include_directories(taco taco/include benchmark/include suitesparse/Include)
+include_directories(taco taco/include benchmark/include suitesparse/Include taco/src)
 
 file(GLOB TEST_SOURCES *.cpp *.h)
 
