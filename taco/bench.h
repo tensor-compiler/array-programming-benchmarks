@@ -74,6 +74,24 @@ taco::Tensor<T> castToType(std::string name, taco::Tensor<double> tensor) {
   return result;
 }
 
+template<typename T>
+taco::Tensor<T> castToTypeZero(std::string name, taco::Tensor<double> tensor) {
+  taco::Tensor<T> result(name, tensor.getDimensions(), tensor.getFormat());
+  std::vector<int> coords(tensor.getOrder());
+  for (auto& value : taco::iterate<double>(tensor)) {
+    for (int i = 0; i < tensor.getOrder(); i++) {
+      coords[i] = value.first[i];
+    }
+    // Attempt to cast the value to an integer. However, if the cast causes
+    // the value to equal 0, then this will ruin the sparsity pattern of the
+    // tensor, as the 0 values will get compressed out. So, if a cast would
+    // equal 0, insert 1 instead to preserve the sparsity pattern of the tensor.
+    result.insert(coords, static_cast<T>(value.second));
+  }
+  result.pack();
+  return result;
+}
+
 template<typename T, typename T2>
 taco::Tensor<T> shiftLastMode(std::string name, taco::Tensor<T2> original) {
   taco::Tensor<T> result(name, original.getDimensions(), original.getFormat());

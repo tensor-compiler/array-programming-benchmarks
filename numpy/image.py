@@ -4,7 +4,7 @@ import os
 import pytest
 import matplotlib.pyplot as plt 
 import sparse
-from util import ImagePydataSparseTensorLoader, safeCastPydataTensorToInts 
+from util import ImagePydataSparseTensorLoader, safeCastPydataTensorToInts, TnsFileDumper 
 
 
 # plot_image plots the given original, binned, xor, and sparse xor images
@@ -215,6 +215,51 @@ def bench_edge_detection_window_dense(tacoBench, num, pt1, window_size):
             return xor_img
 
         tacoBench(dense_bench)
+
+# USED FOR TESTING ITTERATION LATTICE CONSTRUCTION TACO CODE ONLY
+def testOp(a, b, c):
+    return np.logical_and(np.logical_not(np.logical_and(a, c).astype('int')).astype('int'), np.logical_not(np.logical_and(b, c).astype('int')).astype('int')).astype('int')
+@pytest.mark.skip(reason="Used for verification only")
+@pytest.mark.parametrize("num", list(range(1, 11))) 
+@pytest.mark.parametrize("pt1", [0.5])
+def bench_test_fused_pydata(tacoBench, num, pt1):
+        loader = ImagePydataSparseTensorLoader()
+        sparse_bin_img1 = safeCastPydataTensorToInts(loader.sparse_image(num, pt1, 1))
+        sparse_bin_img2 = safeCastPydataTensorToInts(loader.sparse_image(num, pt1+0.05, 2))
+        sparse_bin_window = loader.sparse_window(num, 3)
+        bin_img1 = loader.dense_image(num, pt1, 1) 
+        bin_img2 = loader.dense_image(num, pt1 + 0.05, 2)
+        bin_window = loader.dense_window(num)
+
+        def sparse_bench():
+            return testOp(sparse_bin_img1, sparse_bin_img2, sparse_bin_window).astype('int')
+
+        def dense_bench():
+            return testOp(bin_img1, bin_img2, bin_window).astype('int')
+
+        ret = tacoBench(sparse_bench)
+        sparse_xor_img = sparse_bench()
+        xor_img = dense_bench()
+
+        # Write result to TNS file to see what's different
+        shape = xor_img.shape
+        result = sparse.COO.from_numpy(xor_img, fill_value=0)
+        dok = sparse.DOK(result)
+        TnsFileDumper().dump_dict_to_file(shape, dok.data, os.path.join("temp", "numpy-result-{}.tns".format(num)))
+        
+    
+        num_elements = float(np.prod(bin_img1.shape))
+        f = sparse_xor_img.fill_value
+        print("shape1", sparse_bin_img1.shape)
+        print("shape2", sparse_bin_img2.shape)
+        print("sparse img1 nnz =", sparse_bin_img1.nnz, "    ", np.sum(bin_img1 != 0))
+        print("sparse img2 nnz =", sparse_bin_img2.nnz, "    ", np.sum(bin_img2 != 0))
+        print("sparse win nnz =", sparse_bin_window.nnz, "    ", np.sum(bin_window != 0))
+        print("Total num elements", num_elements)
+        print("Fill value", f)
+        print("Sparse xor NNF = ", sparse_xor_img.nnz, "\t", "Dense xor NNF = ", np.sum(xor_img != int(f)))
+        print("Dense xor NNZ = ", np.sum(xor_img != 0))
+        assert(sparse_xor_img.nnz == np.sum(xor_img != 1))
             
 if __name__=="__main__":
     main()

@@ -44,7 +44,7 @@ class TnsFileDumper:
     def __init__(self):
         pass
 
-    def dump_dict_to_file(self, shape, data, path):
+    def dump_dict_to_file(self, shape, data, path, write_shape = False):
         # Sort the data so that the output is deterministic.
         sorted_data = sorted([list(coords) + [value] for coords, value in data.items()])
         with open(path, 'w+') as f:
@@ -53,9 +53,10 @@ class TnsFileDumper:
                 strings = coords + [str(line[-1])]
                 f.write(" ".join(strings))
                 f.write("\n")
-            shape_strings = [str(elem) for elem in shape] + ['0']
-            f.write(" ".join(shape_strings))
-            f.write("\n")
+            if write_shape:
+                shape_strings = [str(elem) for elem in shape] + ['0']
+                f.write(" ".join(shape_strings))
+                f.write("\n")
 
 # ScipySparseTensorLoader loads a sparse tensor from a file into a
 # scipy.sparse CSR matrix.
@@ -372,7 +373,8 @@ class ImagePydataSparseTensorLoader:
             bin_img = self.dense_image(num, pt, variant, path)
             result = sparse.COO.from_numpy(bin_img)
             dok = sparse.DOK(result)
-            TnsFileDumper().dump_dict_to_file(self.shape[num], dok.data, key)
+            write_shape = bin_img.flat[-1] == 0
+            TnsFileDumper().dump_dict_to_file(self.shape[num], dok.data, key, write_shape)
             return result
 
     # sparse_window and dense_window must be called after the image calls
@@ -389,7 +391,8 @@ class ImagePydataSparseTensorLoader:
             result_np = self.dense_window(num)
             result = sparse.COO.from_numpy(result_np)
             dok = sparse.DOK(result)
-            TnsFileDumper().dump_dict_to_file(shape, dok.data, key)
+            write_shape = result_np.flat[-1] == 0
+            TnsFileDumper().dump_dict_to_file(shape, dok.data, key, write_shape)
             return result
 
     def dense_window(self, num):
