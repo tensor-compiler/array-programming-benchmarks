@@ -400,8 +400,8 @@ class ImagePydataSparseTensorLoader:
         result_np = numpy.zeros(shape)
         m0 = int(shape[0] / 2)
         m1 = int(shape[1] / 2)
-        dm0 = int(0.2*m0)
-        dm1 = int(0.2*m1)
+        dm0 = int(0.1*m0)
+        dm1 = int(0.1*m1)
         result_np[m0+dm0:m0+3*dm0, m1+dm1:m1+3*dm1] = 1
         result_np[m0-3*dm0:m0-dm0, m1+dm1:m1+3*dm1] = 1
         result_np[m0-3*dm0:m0-dm0, m1-3*dm1:m1-dm1] = 1

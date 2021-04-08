@@ -68,8 +68,8 @@ Func andOp1("logical_and", Boolean(), andAlgebra());
 Func xorAndOp("fused_xor_and", Boolean(), xorAndAlgebra());
 Func testOp("test", Boolean(), testConstructionAlgebra());
 static void bench_image_xor(benchmark::State& state, const Format& f) {
-  auto t1 = 0.5;
-  auto t2 = 0.55;
+  auto t1 = 0.75;
+  auto t2 = 0.80;
 
   auto num_str = getEnvVar("IMAGE_NUM");
   if (num_str == "") {
@@ -78,7 +78,7 @@ static void bench_image_xor(benchmark::State& state, const Format& f) {
   }
 
   int num = std::stoi(num_str);
-
+//  int num = state.range(0);
   taco::Tensor<int64_t> matrix1, matrix2;
   try {
     matrix1 = castToTypeZero<int64_t>("A", loadImageTensor("A", num, f, t1, 1 /* variant */));
@@ -101,12 +101,6 @@ static void bench_image_xor(benchmark::State& state, const Format& f) {
     result.compile();
     state.ResumeTiming();
     result.compute();
-    result = result.removeExplicitZeros(result.getFormat());
-
-    int nnz = 0;
-    for (auto& it : iterate<int64_t>(result)) {
-      nnz++;
-    }
 //    std::cout << "Result NNZ = " << nnz << std::endl;
 //    std::cout << result << std::endl;
   }
@@ -115,11 +109,11 @@ static void CustomArguments(benchmark::internal::Benchmark* b) {
   for (int i = 1; i <= 98; ++i)
       b->Args({i});
 }
-TACO_BENCH_ARGS(bench_image_xor, csr, CSR);
+TACO_BENCH_ARGS(bench_image_xor, csr, CSR);//->Apply(CustomArguments);
 
 static void bench_image_fused(benchmark::State& state, const Format& f) {
 //  int num = state.range(0);
-  auto t1 = 0.5;
+  auto t1 = 0.75;
   auto t2 = 0.55;
 
   auto num_str = getEnvVar("IMAGE_NUM");
@@ -174,7 +168,7 @@ static void bench_image_fused(benchmark::State& state, const Format& f) {
     result.compile();
     state.ResumeTiming();
     result.compute();
-    result = result.removeExplicitZeros(result.getFormat());
+//    result = result.removeExplicitZeros(result.getFormat());
 
 //    int nnz = 0;
 //    for (auto& it : iterate<int64_t>(result)) {
@@ -192,8 +186,8 @@ TACO_BENCH_ARGS(bench_image_fused, csr, CSR);
 
 static void bench_image_window(benchmark::State& state, const Format& f, double window_size) {
 //  int num = state.range(0);
-  auto t1 = 0.5;
-  auto t2 = 0.55;
+  auto t1 = 0.75;
+  auto t2 = 0.80;
 
   auto num_str = getEnvVar("IMAGE_NUM");
   if (num_str == "") {
@@ -233,7 +227,7 @@ static void bench_image_window(benchmark::State& state, const Format& f, double 
     result.compile();
     state.ResumeTiming();
     result.compute();
-    result = result.removeExplicitZeros(result.getFormat());
+//    result = result.removeExplicitZeros(result.getFormat());
 
 //        int nnz = 0;
 //    for (auto& it : iterate<int64_t>(result)) {

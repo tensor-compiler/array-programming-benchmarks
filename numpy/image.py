@@ -3,12 +3,12 @@ import cv2
 import os
 import pytest
 import sparse
-from util import ImagePydataSparseTensorLoader, safeCastPydataTensorToInts, TnsFileDumper #plot_image 
+from util import ImagePydataSparseTensorLoader, safeCastPydataTensorToInts, TnsFileDumper#, plot_image 
 
 # import matplotlib.pyplot as plt 
 
 @pytest.mark.parametrize("num", list(range(1, 99))) 
-@pytest.mark.parametrize("pt1", [0.5])
+@pytest.mark.parametrize("pt1", [0.75])
 def bench_edge_detection_pydata(tacoBench, num, pt1, plot):
         loader = ImagePydataSparseTensorLoader()
         sparse_bin_img1 = safeCastPydataTensorToInts(loader.sparse_image(num, pt1, 1))
@@ -44,7 +44,7 @@ def bench_edge_detection_pydata(tacoBench, num, pt1, plot):
             #plot_image(loader.img[num], bin_img1, bin_img2, xor_img, sparse_xor_img, t1, t2)
 
 @pytest.mark.parametrize("num", list(range(1, 99))) 
-@pytest.mark.parametrize("pt1", [0.5])
+@pytest.mark.parametrize("pt1", [0.75])
 def bench_edge_detection_dense(tacoBench, num, pt1):
         loader = ImagePydataSparseTensorLoader()
         bin_img1 = loader.dense_image(num, pt1, 1) 
@@ -56,7 +56,7 @@ def bench_edge_detection_dense(tacoBench, num, pt1):
         tacoBench(dense_bench)
 
 @pytest.mark.parametrize("num", list(range(1, 99))) 
-@pytest.mark.parametrize("pt1", [0.5])
+@pytest.mark.parametrize("pt1", [0.75])
 def bench_edge_detection_fused_pydata(tacoBench, num, pt1, plot):
         loader = ImagePydataSparseTensorLoader()
         sparse_bin_img1 = safeCastPydataTensorToInts(loader.sparse_image(num, pt1, 1))
@@ -94,12 +94,12 @@ def bench_edge_detection_fused_pydata(tacoBench, num, pt1, plot):
             sparse_xor_img = sparse_xor_img.todense()
             t1 = round(loader.max[num]*pt1, 2)
             t2 = round(loader.max[num]*(pt1 + 0.05), 2)
-            #plot_image(loader.img[num], bin_img1, bin_img2, xor_img, sparse_xor_img, t1, t2, bin_window)
+            plot_image(loader.img[num], bin_img1, bin_img2, xor_img, sparse_xor_img, t1, t2, bin_window)
 
         assert(sparse_xor_img.nnz == np.sum(xor_img != 0))
 
 @pytest.mark.parametrize("num", list(range(1, 99))) 
-@pytest.mark.parametrize("pt1", [0.5])
+@pytest.mark.parametrize("pt1", [0.75])
 def bench_edge_detection_fused_dense(tacoBench, num, pt1):
         loader = ImagePydataSparseTensorLoader()
         bin_img1 = loader.dense_image(num, pt1, 1) 
@@ -115,7 +115,7 @@ def bench_edge_detection_fused_dense(tacoBench, num, pt1):
 
 #TODO: Add in a benchmark that uses windowing for medical imaging as well. 
 @pytest.mark.parametrize("num", list(range(1, 99))) 
-@pytest.mark.parametrize("pt1", [0.5])
+@pytest.mark.parametrize("pt1", [0.75])
 @pytest.mark.parametrize("window_size", [0.25, 0.2, 0.15, 0.1])
 def bench_edge_detection_window_pydata(tacoBench, num, pt1, window_size, plot):
         loader = ImagePydataSparseTensorLoader()
@@ -168,7 +168,7 @@ def bench_edge_detection_window_pydata(tacoBench, num, pt1, window_size, plot):
         assert(sparse_xor_img.nnz == np.sum(xor_img != 0))
 
 @pytest.mark.parametrize("num", list(range(1, 99))) 
-@pytest.mark.parametrize("pt1", [0.5])
+@pytest.mark.parametrize("pt1", [0.75])
 @pytest.mark.parametrize("window_size", [0.25, 0.2, 0.15, 0.1])
 def bench_edge_detection_window_dense(tacoBench, num, pt1, window_size):
         loader = ImagePydataSparseTensorLoader()
@@ -192,6 +192,7 @@ def bench_edge_detection_window_dense(tacoBench, num, pt1, window_size):
 # USED FOR TESTING ITTERATION LATTICE CONSTRUCTION TACO CODE ONLY
 def testOp(a, b, c):
     return np.logical_and(np.logical_not(np.logical_and(a, c).astype('int')).astype('int'), np.logical_not(np.logical_and(b, c).astype('int')).astype('int')).astype('int')
+
 @pytest.mark.skip(reason="Used for verification only")
 @pytest.mark.parametrize("num", list(range(1, 11))) 
 @pytest.mark.parametrize("pt1", [0.5])
@@ -233,3 +234,74 @@ def bench_test_fused_pydata(tacoBench, num, pt1):
         print("Sparse xor NNF = ", sparse_xor_img.nnz, "\t", "Dense xor NNF = ", np.sum(xor_img != int(f)))
         print("Dense xor NNZ = ", np.sum(xor_img != 0))
         assert(sparse_xor_img.nnz == np.sum(xor_img != 1))
+
+@pytest.mark.skip(reason="for getting the input matrices statistics only")
+@pytest.mark.parametrize("num", list(range(1, 99))) 
+@pytest.mark.parametrize("pt1", [0.75])
+def bench_edge_detection_statistics(tacoBench, num, pt1):
+        loader = ImagePydataSparseTensorLoader()
+        sparse_bin_img1 = safeCastPydataTensorToInts(loader.sparse_image(num, pt1, 1))
+        sparse_bin_img2 = safeCastPydataTensorToInts(loader.sparse_image(num, pt1+0.05, 2))
+        sparse_bin_window = loader.sparse_window(num, 3)
+
+        print(sparse_bin_img1.shape)
+        print(sparse_bin_img2.shape)
+        extra_info = dict()
+        extra_info['nnz1'] = sparse_bin_img1.nnz
+        extra_info['nnz2'] = sparse_bin_img2.nnz
+        extra_info['nnz3'] = sparse_bin_window.nnz
+        extra_info['dimx'] = sparse_bin_window.shape[0]
+        extra_info['dimy'] = sparse_bin_window.shape[1]
+
+        def sparse_bench():
+            sbi1 = np.logical_and(sparse_bin_img1, sparse_bin_window)
+            sbi2 = np.logical_and(sparse_bin_img2, sparse_bin_window)
+            sparse_xor_img = np.logical_xor(sbi1, sbi2).astype('int')
+            return sparse_xor_img
+
+        tacoBench(sparse_bench, extra_info)
+
+@pytest.mark.skip(reasoun="For image generation only")
+@pytest.mark.parametrize("num", [42, 44, 50, 63, 92]) 
+@pytest.mark.parametrize("pt1", [0.75])
+def bench_edge_detection_fused_pydata(tacoBench, num, pt1, plot):
+        loader = ImagePydataSparseTensorLoader()
+        sparse_bin_img1 = safeCastPydataTensorToInts(loader.sparse_image(num, pt1, 1))
+        sparse_bin_img2 = safeCastPydataTensorToInts(loader.sparse_image(num, pt1+0.05, 2))
+        sparse_bin_window = loader.sparse_window(num, 3)
+        bin_img1 = loader.dense_image(num, pt1, 1) 
+        bin_img2 = loader.dense_image(num, pt1 + 0.05, 2)
+        bin_window = loader.dense_window(num)
+
+        if plot:
+            print(sparse_bin_img1.shape)
+            print(sparse_bin_img2.shape)
+
+        def sparse_bench():
+            sbi1 = np.logical_and(sparse_bin_img1, sparse_bin_window)
+            sbi2 = np.logical_and(sparse_bin_img2, sparse_bin_window)
+            sparse_xor_img = np.logical_xor(sbi1, sbi2).astype('int')
+            return sparse_xor_img
+
+        def dense_bench():
+            bi1 = np.logical_and(bin_img1, bin_window).astype('int')
+            bi2 = np.logical_and(bin_img2, bin_window).astype('int')
+            xor_img = np.logical_xor(bi1, bi2).astype('int')
+            return xor_img
+        ret = tacoBench(sparse_bench)
+        sparse_xor_img = sparse_bench()
+        xor_img = dense_bench()
+        
+        if plot:
+            num_elements = float(np.prod(bin_img1.shape))
+            print("Sparse xor NNZ = ", sparse_xor_img.nnz, "\t", "Dense xor NNZ = ", np.sum(xor_img != 0))
+            print("Sparsity img 1 ", np.sum(bin_img1 != 0) / num_elements)
+            print("Sparsity img 2 ", np.sum(bin_img2 != 0) / num_elements)
+            print("Sparsity xor ", np.sum(xor_img != 0) / num_elements)
+            sparse_xor_img = sparse_xor_img.todense()
+            t1 = round(loader.max[num]*pt1, 2)
+            t2 = round(loader.max[num]*(pt1 + 0.05), 2)
+            #plot_image(loader.img[num], bin_img1, bin_img2, xor_img, sparse_xor_img, t1, t2, bin_window)
+
+        assert(sparse_xor_img.nnz == np.sum(xor_img != 0))
+
