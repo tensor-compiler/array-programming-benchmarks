@@ -68,18 +68,35 @@ Func andOp1("logical_and", Boolean(), andAlgebra());
 Func xorAndOp("fused_xor_and", Boolean(), xorAndAlgebra());
 Func testOp("test", Boolean(), testConstructionAlgebra());
 static void bench_image_xor(benchmark::State& state, const Format& f) {
-  int num = state.range(0);
   auto t1 = 0.5;
   auto t2 = 0.55;
-  Tensor<int64_t> matrix1 = castToTypeZero<int64_t>("A", loadImageTensor("A", num, f, t1, 1 /* variant */));
-  Tensor<int64_t> matrix2 = castToTypeZero<int64_t>("B", loadImageTensor("B", num, f, t2, 2 /* variant */));
+
+  auto num_str = getEnvVar("IMAGE_NUM");
+  if (num_str == "") {
+    state.error_occurred();
+    return;
+  }
+
+  int num = std::stoi(num_str);
+
+  taco::Tensor<int64_t> matrix1, matrix2;
+  try {
+    matrix1 = castToTypeZero<int64_t>("A", loadImageTensor("A", num, f, t1, 1 /* variant */));
+    matrix2 = castToTypeZero<int64_t>("B", loadImageTensor("B", num, f, t2, 2 /* variant */));
+  } catch (TacoException& e) {
+    // Counters don't show up in the generated CSV if we used SkipWithError, so
+    // just add in the label that this run is skipped.
+    state.SetLabel(num_str+"/SKIPPED-FAILED-READ");
+    return;
+  }
+
   auto dims = matrix1.getDimensions();
 
   for (auto _ : state) {
     state.PauseTiming();
     Tensor<int64_t> result("result", dims, f, 1);
     IndexVar i("i"), j("j");
-    result(i, j) = testOp(matrix1(i, j), matrix2(i, j));
+    result(i, j) = xorOp1(matrix1(i, j), matrix2(i, j));
     result.setAssembleWhileCompute(true);
     result.compile();
     state.ResumeTiming();
@@ -98,15 +115,33 @@ static void CustomArguments(benchmark::internal::Benchmark* b) {
   for (int i = 1; i <= 98; ++i)
       b->Args({i});
 }
-TACO_BENCH_ARGS(bench_image_xor, csr, CSR)->Apply(CustomArguments);
+TACO_BENCH_ARGS(bench_image_xor, csr, CSR);
 
 static void bench_image_fused(benchmark::State& state, const Format& f) {
-  int num = state.range(0);
+//  int num = state.range(0);
   auto t1 = 0.5;
   auto t2 = 0.55;
-  Tensor<int64_t> matrix1 = castToTypeZero<int64_t>("A", loadImageTensor("A", num, f, t1, 1 /* variant */));
-  Tensor<int64_t> matrix2 = castToTypeZero<int64_t>("B", loadImageTensor("B", num, f, t2, 2 /* variant */));
-  Tensor<int64_t> matrix3 = castToTypeZero<int64_t>("C", loadImageTensor("C", num, f, 3 /* variant */));
+
+  auto num_str = getEnvVar("IMAGE_NUM");
+  if (num_str == "") {
+    state.error_occurred();
+    return;
+  }
+
+  int num = std::stoi(num_str);
+
+  taco::Tensor<int64_t> matrix1, matrix2, matrix3;
+  try {
+    matrix1 = castToTypeZero<int64_t>("A", loadImageTensor("A", num, f, t1, 1 /* variant */));
+    matrix2 = castToTypeZero<int64_t>("B", loadImageTensor("B", num, f, t2, 2 /* variant */));
+    matrix3 = castToTypeZero<int64_t>("C", loadImageTensor("C", num, f, 3 /* variant */));
+  } catch (TacoException& e) {
+    // Counters don't show up in the generated CSV if we used SkipWithError, so
+    // just add in the label that this run is skipped.
+    state.SetLabel(num_str+"/SKIPPED-FAILED-READ");
+    return;
+  }
+
   auto dims = matrix1.getDimensions();
 
 //  write("temp/taco-mat1-" + std::to_string(num) + ".tns", matrix1);
@@ -153,14 +188,32 @@ static void bench_image_fused(benchmark::State& state, const Format& f) {
 //    codegen->compile(compute, true);
   }
 }
-TACO_BENCH_ARGS(bench_image_fused, csr, CSR)->Apply(CustomArguments);
+TACO_BENCH_ARGS(bench_image_fused, csr, CSR);
 
 static void bench_image_window(benchmark::State& state, const Format& f, double window_size) {
-  int num = state.range(0);
+//  int num = state.range(0);
   auto t1 = 0.5;
   auto t2 = 0.55;
-  Tensor<int64_t> matrix1 = castToTypeZero<int64_t>("A", loadImageTensor("A", num, f, t1, 1 /* variant */));
-  Tensor<int64_t> matrix2 = castToTypeZero<int64_t>("B", loadImageTensor("B", num, f, t2, 2 /* variant */));
+
+  auto num_str = getEnvVar("IMAGE_NUM");
+  if (num_str == "") {
+    state.error_occurred();
+    return;
+  }
+
+  int num = std::stoi(num_str);
+
+  taco::Tensor<int64_t> matrix1, matrix2, matrix3;
+  try {
+    matrix1 = castToTypeZero<int64_t>("A", loadImageTensor("A", num, f, t1, 1 /* variant */));
+    matrix2 = castToTypeZero<int64_t>("B", loadImageTensor("B", num, f, t2, 2 /* variant */));
+  } catch (TacoException& e) {
+    // Counters don't show up in the generated CSV if we used SkipWithError, so
+    // just add in the label that this run is skipped.
+    state.SetLabel(num_str+"/SKIPPED-FAILED-READ");
+    return;
+  }
+
   auto dims = matrix1.getDimensions();
 
   int mid0 = (dims[0]/2.0);
@@ -195,7 +248,7 @@ static void bench_image_window(benchmark::State& state, const Format& f, double 
 //    codegen->compile(compute, true);
   }
 }
-TACO_BENCH_ARGS(bench_image_window, csr/0.25, CSR, 0.25)->Apply(CustomArguments);
-TACO_BENCH_ARGS(bench_image_window, csr/0.2, CSR, 0.2)->Apply(CustomArguments);
-TACO_BENCH_ARGS(bench_image_window, csr/0.15, CSR, 0.15)->Apply(CustomArguments);
-TACO_BENCH_ARGS(bench_image_window, csr/0.1, CSR, 0.1)->Apply(CustomArguments);
+TACO_BENCH_ARGS(bench_image_window, csr/0.25, CSR, 0.25);
+TACO_BENCH_ARGS(bench_image_window, csr/0.2, CSR, 0.2);
+TACO_BENCH_ARGS(bench_image_window, csr/0.15, CSR, 0.15);
+TACO_BENCH_ARGS(bench_image_window, csr/0.1, CSR, 0.1);
