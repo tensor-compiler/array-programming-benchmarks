@@ -90,8 +90,8 @@ static void bench_image_xor(benchmark::State& state, const Format& f) {
     for (auto& it : iterate<int64_t>(result)) {
       nnz++;
     }
-    std::cout << "Result NNZ = " << nnz << std::endl;
-    std::cout << result << std::endl;
+//    std::cout << "Result NNZ = " << nnz << std::endl;
+//    std::cout << result << std::endl;
   }
 }
 static void CustomArguments(benchmark::internal::Benchmark* b) {
@@ -112,40 +112,40 @@ static void bench_image_fused(benchmark::State& state, const Format& f) {
 //  write("temp/taco-mat1-" + std::to_string(num) + ".tns", matrix1);
 //  write("temp/taco-mat2-" + std::to_string(num) + ".tns", matrix2);
 //  write("temp/taco-mat3-" + std::to_string(num) + ".tns", matrix3);
-  int nnz = 0;
-  for (auto& it : iterate<int64_t>(matrix1)) {
-    nnz++;
-  }
-  std::cout << "Matrix1 NNZ = " << nnz << std::endl;
-  nnz = 0;
-  for (auto& it : iterate<int64_t>(matrix2)) {
-    nnz++;
-  }
-  std::cout << "Matrix2 NNZ = " << nnz << std::endl;
-  nnz = 0;
-  for (auto& it : iterate<int64_t>(matrix3)) {
-    nnz++;
-  }
-  std::cout << "Matrix3 NNZ = " << nnz << std::endl;
+//  int nnz = 0;
+//  for (auto& it : iterate<int64_t>(matrix1)) {
+//    nnz++;
+//  }
+//  std::cout << "Matrix1 NNZ = " << nnz << std::endl;
+//  nnz = 0;
+//  for (auto& it : iterate<int64_t>(matrix2)) {
+//    nnz++;
+//  }
+//  std::cout << "Matrix2 NNZ = " << nnz << std::endl;
+//  nnz = 0;
+//  for (auto& it : iterate<int64_t>(matrix3)) {
+//    nnz++;
+//  }
+//  std::cout << "Matrix3 NNZ = " << nnz << std::endl;
 
   for (auto _ : state) {
     state.PauseTiming();
     Tensor<int64_t> result("result", dims, f, 0);
 
     IndexVar i("i"), j("j");
-    result(i, j) = testOp(matrix1(i, j), matrix2(i, j), matrix3(i, j));
+    result(i, j) = xorAndOp(matrix1(i, j), matrix2(i, j), matrix3(i, j));
     IndexStmt stmt = result.getAssignment().concretize();
     result.setAssembleWhileCompute(true);
     result.compile();
     state.ResumeTiming();
     result.compute();
     result = result.removeExplicitZeros(result.getFormat());
-    int nnz = 0;
-    for (auto& it : iterate<int64_t>(result)) {
-      nnz++;
-    }
 
-    std::cout << "Result NNZ = " << nnz << std::endl;
+//    int nnz = 0;
+//    for (auto& it : iterate<int64_t>(result)) {
+//      nnz++;
+//    }
+//    std::cout << "Result NNZ = " << nnz << std::endl;
 //    write("temp/taco-result" + std::to_string(num) + ".tns", result);
     // Used to print out generated TACO code
 //    std::shared_ptr<ir::CodeGen> codegen = ir::CodeGen::init_default(std::cout, ir::CodeGen::ImplementationGen);
@@ -154,4 +154,48 @@ static void bench_image_fused(benchmark::State& state, const Format& f) {
   }
 }
 TACO_BENCH_ARGS(bench_image_fused, csr, CSR)->Apply(CustomArguments);
-TACO_BENCH_ARGS(bench_image_fused, csr, CSR)->Apply(CustomArguments);
+
+static void bench_image_window(benchmark::State& state, const Format& f, double window_size) {
+  int num = state.range(0);
+  auto t1 = 0.5;
+  auto t2 = 0.55;
+  Tensor<int64_t> matrix1 = castToTypeZero<int64_t>("A", loadImageTensor("A", num, f, t1, 1 /* variant */));
+  Tensor<int64_t> matrix2 = castToTypeZero<int64_t>("B", loadImageTensor("B", num, f, t2, 2 /* variant */));
+  auto dims = matrix1.getDimensions();
+
+  int mid0 = (dims[0]/2.0);
+  int mid1 = (dims[1]/2.0);
+  int win_len0 = int(window_size * dims[0]);
+  int win_len1 = int(window_size * dims[1]);
+
+  for (auto _ : state) {
+    state.PauseTiming();
+    Tensor<int64_t> result("result", {2*win_len0, 2*win_len1}, f, 0);
+
+    IndexVar i("i"), j("j");
+    result(i, j) = xorOp1(matrix1(i(mid0-win_len0, mid0+win_len0), j(mid1-win_len1, mid1+win_len1)),
+                         matrix2(i(mid0-win_len0, mid0+win_len0), j(mid1-win_len1, mid1+win_len1)));
+    IndexStmt stmt = result.getAssignment().concretize();
+    result.setAssembleWhileCompute(true);
+    result.compile();
+    state.ResumeTiming();
+    result.compute();
+    result = result.removeExplicitZeros(result.getFormat());
+
+//        int nnz = 0;
+//    for (auto& it : iterate<int64_t>(result)) {
+//      nnz++;
+//    }
+//    std::cout << "Result NNZ = " << nnz << std::endl;
+
+//    write("temp/taco-result" + std::to_string(num) + ".tns", result);
+    // Used to print out generated TACO code
+//    std::shared_ptr<ir::CodeGen> codegen = ir::CodeGen::init_default(std::cout, ir::CodeGen::ImplementationGen);
+//    ir::Stmt compute = lower(stmt, "compute",  false, true);
+//    codegen->compile(compute, true);
+  }
+}
+TACO_BENCH_ARGS(bench_image_window, csr/0.25, CSR, 0.25)->Apply(CustomArguments);
+TACO_BENCH_ARGS(bench_image_window, csr/0.2, CSR, 0.2)->Apply(CustomArguments);
+TACO_BENCH_ARGS(bench_image_window, csr/0.15, CSR, 0.15)->Apply(CustomArguments);
+TACO_BENCH_ARGS(bench_image_window, csr/0.1, CSR, 0.1)->Apply(CustomArguments);
