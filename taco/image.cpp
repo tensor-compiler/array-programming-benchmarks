@@ -95,7 +95,7 @@ static void bench_image_xor(benchmark::State& state, const Format& f) {
   }
 }
 static void CustomArguments(benchmark::internal::Benchmark* b) {
-  for (int i = 1; i <= 11; ++i)
+  for (int i = 1; i <= 98; ++i)
       b->Args({i});
 }
 TACO_BENCH_ARGS(bench_image_xor, csr, CSR)->Apply(CustomArguments);
