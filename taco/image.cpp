@@ -114,7 +114,7 @@ TACO_BENCH_ARGS(bench_image_xor, csr, CSR);//->Apply(CustomArguments);
 static void bench_image_fused(benchmark::State& state, const Format& f) {
 //  int num = state.range(0);
   auto t1 = 0.75;
-  auto t2 = 0.55;
+  auto t2 = 0.80;
 
   auto num_str = getEnvVar("IMAGE_NUM");
   if (num_str == "") {
@@ -242,7 +242,7 @@ static void bench_image_window(benchmark::State& state, const Format& f, double 
 //    codegen->compile(compute, true);
   }
 }
-TACO_BENCH_ARGS(bench_image_window, csr/0.25, CSR, 0.25);
-TACO_BENCH_ARGS(bench_image_window, csr/0.2, CSR, 0.2);
-TACO_BENCH_ARGS(bench_image_window, csr/0.15, CSR, 0.15);
-TACO_BENCH_ARGS(bench_image_window, csr/0.1, CSR, 0.1);
+TACO_BENCH_ARGS(bench_image_window, csr/0.45, CSR, 0.45);
+TACO_BENCH_ARGS(bench_image_window, csr/0.4, CSR, 0.4);
+TACO_BENCH_ARGS(bench_image_window, csr/0.35, CSR, 0.35);
+TACO_BENCH_ARGS(bench_image_window, csr/0.3, CSR, 0.3);

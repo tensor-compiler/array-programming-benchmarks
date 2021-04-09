@@ -116,7 +116,7 @@ def bench_edge_detection_fused_dense(tacoBench, num, pt1):
 #TODO: Add in a benchmark that uses windowing for medical imaging as well. 
 @pytest.mark.parametrize("num", list(range(1, 99))) 
 @pytest.mark.parametrize("pt1", [0.75])
-@pytest.mark.parametrize("window_size", [0.25, 0.2, 0.15, 0.1])
+@pytest.mark.parametrize("window_size", [0.45, 0.4, 0.35, 0.3])
 def bench_edge_detection_window_pydata(tacoBench, num, pt1, window_size, plot):
         loader = ImagePydataSparseTensorLoader()
         sparse_bin_img1 = safeCastPydataTensorToInts(loader.sparse_image(num, pt1, 1))
@@ -169,7 +169,7 @@ def bench_edge_detection_window_pydata(tacoBench, num, pt1, window_size, plot):
 
 @pytest.mark.parametrize("num", list(range(1, 99))) 
 @pytest.mark.parametrize("pt1", [0.75])
-@pytest.mark.parametrize("window_size", [0.25, 0.2, 0.15, 0.1])
+@pytest.mark.parametrize("window_size", [0.45, 0.4, 0.35, 0.3])
 def bench_edge_detection_window_dense(tacoBench, num, pt1, window_size):
         loader = ImagePydataSparseTensorLoader()
         bin_img1 = loader.dense_image(num, pt1, 1) 
@@ -264,7 +264,7 @@ def bench_edge_detection_statistics(tacoBench, num, pt1):
 @pytest.mark.skip(reasoun="For image generation only")
 @pytest.mark.parametrize("num", [42, 44, 50, 63, 92]) 
 @pytest.mark.parametrize("pt1", [0.75])
-def bench_edge_detection_fused_pydata(tacoBench, num, pt1, plot):
+def bench_edge_detection_plot(tacoBench, num, pt1, plot):
         loader = ImagePydataSparseTensorLoader()
         sparse_bin_img1 = safeCastPydataTensorToInts(loader.sparse_image(num, pt1, 1))
         sparse_bin_img2 = safeCastPydataTensorToInts(loader.sparse_image(num, pt1+0.05, 2))
