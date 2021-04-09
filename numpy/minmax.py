@@ -23,3 +23,16 @@ def bench_pydata_minmax(tacoBench, dims):
                 reduced = np.min(reduced, -1)     
         return reduced
     tacoBench(bench)
+
+@pytest.mark.parametrize("dims", [1, 3, 5])
+def bench_minmax_statistics(tacoBench, dims):
+    loader = MinMaxPydataSparseTensorLoader()
+    dims_list = [20] + [20] + [43 for ele in range(dims)]
+    matrix = loader.tensor(dims_list)
+
+    extra_info = dict()
+    extra_info["nnz"] = matrix.nnz
+
+    def nop():
+        return 0
+    tacoBench(nop, extra_info)
