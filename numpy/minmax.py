@@ -5,7 +5,7 @@ import pytest
 import os
 from util import MinMaxPydataSparseTensorLoader
 
-@pytest.mark.parametrize("dims", [1, 3, 5, 7])
+@pytest.mark.parametrize("dims", [1, 3, 5])
 def bench_pydata_minmax(tacoBench, dims):
     loader = MinMaxPydataSparseTensorLoader()
     dims_list = [20] + [20] + [43 for ele in range(dims)]
