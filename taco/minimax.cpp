@@ -84,8 +84,9 @@ static void bench_minimax(benchmark::State& state) {
   // TODO (rohany, owhsu): We need to actually generate the input game state.
   for (auto _ : state) {
     state.PauseTiming();
-    Tensor<float> result("C");
+    Tensor<double> result("C");
     result = genMinMaxExpr(game, ivars, 0);
+    result.setAssembleWhileCompute(true);
     result.compile();
 //    std::cout << result.getSource() << std::endl;
     state.ResumeTiming();
