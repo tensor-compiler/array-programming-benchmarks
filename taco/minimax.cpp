@@ -45,6 +45,11 @@ IndexExpr genMinMaxExpr(Tensor<float>& game, std::vector<IndexVar>& indexVars, i
 }
 
 static void bench_minimax(benchmark::State& state) {
+  int order = state.range(0) + 2;
+  std::vector<ModeFormatPack> modes(order, Sparse);
+  Format f(modes);
+  taco::Tensor<int64_t> tensor = castToType<int64_t>("A", loadMinMaxTensor("A", order, f));
+
   // This benchmark needs this hack activated to generate correct code.
   if(util::getFromEnv("TACO_CONCRETIZE_HACK", "0") == "0") {
     state.SkipWithError("must set TACO_CONCRETIZE_HACK=1");
@@ -66,7 +71,8 @@ static void bench_minimax(benchmark::State& state) {
       IndexVar("t"),
   };
 
-  std::vector<int> dims = {20, 20, 43, 43, 43, 43, 43};
+  std::vector<int> dims = {20, 20, 43, 43, 43, 43, 43, 43, 43};
+  dims.resize(order);
   // TODO (rohany, owhsu): We need to actually generate the input game state.
   Tensor<float> game("game", dims, Sparse);
   for (auto _ : state) {
@@ -76,6 +82,7 @@ static void bench_minimax(benchmark::State& state) {
     result.compile();
     std::cout << result.getSource() << std::endl;
     state.ResumeTiming();
+    result.compute();
   }
 }
-TACO_BENCH(bench_minimax);
+TACO_BENCH(bench_minimax)->Arg(1)->Arg(3)->Arg(5)->Arg(7);

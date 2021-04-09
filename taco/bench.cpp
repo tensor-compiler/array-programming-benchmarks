@@ -87,3 +87,27 @@ taco::TensorBase loadImageTensor(std::string name, int num, taco::Format format,
   tensor.setName(name);
   return tensor;
 }
+
+std::string constructMinMaxTensorKey(int order, int variant) {
+  auto path = getTacoTensorPath();
+  std::stringstream result;
+  result << path;
+  if (path[path.size() - 1] != '/') {
+    result << "/";
+  }
+  result << "minmax/";
+  if (variant == 0) {
+    result << "minmax-"  << order << ".tns";
+  } else {
+    result << "minmax-" << order << "-" << variant << ".tns";
+  }
+  return result.str();
+}
+
+taco::TensorBase loadMinMaxTensor(std::string name, int order, taco::Format format, int variant) {
+  // For now, just say that the python code must generate the random
+  // tensor before use.
+  auto tensor = taco::read(constructMinMaxTensorKey(order, variant), format, true);
+  tensor.setName(name);
+  return tensor;
+}
