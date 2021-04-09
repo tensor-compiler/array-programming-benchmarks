@@ -504,7 +504,7 @@ class MinMaxPydataSparseTensorLoader:
                 stop = numpy.max(ind_list)
                 for i in range(start, stop):
                     temp = tuple(c[1:] + [i])
-                    values[temp] = int(20*numpy.random.rand())
+                    values[temp] = int(20*numpy.random.rand() - 10)
 
             dok = sparse.DOK(shape, values)
             ind = tuple([e - 1 for e in shape])
