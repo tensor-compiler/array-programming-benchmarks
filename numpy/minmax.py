@@ -21,8 +21,10 @@ def bench_pydata_minmax(tacoBench, dims):
                 reduced = np.max(reduced, -1)
             else:
                 reduced = np.min(reduced, -1)     
+            print(reduced)
         return reduced
-    red = tacoBench(bench)
+    tacoBench(bench)
+    red = bench()
     print("reduced value for", dims, "is", red)
 
 @pytest.mark.parametrize("dims", [1, 3, 5])
