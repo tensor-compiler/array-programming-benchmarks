@@ -3,7 +3,7 @@ import cv2
 import os
 import pytest
 import sparse
-from util import ImagePydataSparseTensorLoader, safeCastPydataTensorToInts, TnsFileDumper#, plot_image 
+from util import ImagePydataSparseTensorLoader, safeCastPydataTensorToInts, TnsFileDumper, plot_image 
 
 # import matplotlib.pyplot as plt 
 
@@ -283,15 +283,14 @@ def bench_edge_detection_plot(tacoBench, num, pt1, plot):
             sparse_xor_img = np.logical_xor(sbi1, sbi2).astype('int')
             return sparse_xor_img
 
-        def dense_bench():
-            bi1 = np.logical_and(bin_img1, bin_window).astype('int')
-            bi2 = np.logical_and(bin_img2, bin_window).astype('int')
-            xor_img = np.logical_xor(bi1, bi2).astype('int')
+        def xor():
+            xor_img = np.logical_xor(sparse_bin_img1, sparse_bin_img2).astype('int')
             return xor_img
+
         ret = tacoBench(sparse_bench)
         sparse_xor_img = sparse_bench()
-        xor_img = dense_bench()
-        
+        xor_img = xor()
+
         if plot:
             num_elements = float(np.prod(bin_img1.shape))
             print("Sparse xor NNZ = ", sparse_xor_img.nnz, "\t", "Dense xor NNZ = ", np.sum(xor_img != 0))
@@ -301,7 +300,6 @@ def bench_edge_detection_plot(tacoBench, num, pt1, plot):
             sparse_xor_img = sparse_xor_img.todense()
             t1 = round(loader.max[num]*pt1, 2)
             t2 = round(loader.max[num]*(pt1 + 0.05), 2)
-            #plot_image(loader.img[num], bin_img1, bin_img2, xor_img, sparse_xor_img, t1, t2, bin_window)
+            #plot_image(loader.img[num], bin_img1, bin_img2, xor_img.todense(), sparse_xor_img, t1, t2, bin_window)
 
-        assert(sparse_xor_img.nnz == np.sum(xor_img != 0))
 
