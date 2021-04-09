@@ -507,7 +507,9 @@ class MinMaxPydataSparseTensorLoader:
                     values[temp] = int(20*numpy.random.rand())
 
             dok = sparse.DOK(shape, values)
-            TnsFileDumper().dump_dict_to_file(shape, dok.data, key)
+            ind = tuple([e - 1 for e in shape])
+            write_shape = False if ind in values.keys() else True  
+            TnsFileDumper().dump_dict_to_file(shape, dok.data, key, write_shape)
             result = dok.asformat('coo')
             return result
 
