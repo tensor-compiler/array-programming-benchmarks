@@ -51,7 +51,7 @@ std::string getValidationOutputPath();
 std::string cleanPath(std::string path);
 taco::TensorBase loadRandomTensor(std::string name, std::vector<int> dims, float sparsity, taco::Format format, int variant=0);
 taco::TensorBase loadImageTensor(std::string name, int num, taco::Format format, float threshold, int variant=0);
-
+taco::TensorBase loadMinMaxTensor(std::string name, int order, taco::Format format, int variant=0);
 template<typename T>
 taco::Tensor<T> castToType(std::string name, taco::Tensor<double> tensor) {
   taco::Tensor<T> result(name, tensor.getDimensions(), tensor.getFormat());
