@@ -6,6 +6,9 @@ import glob
 import numpy
 import cv2
 
+# NEEDS TO BE COMMENTED OUT FOR LANKA
+# import matplotlib.pyplot as plt
+
 # Get the path to the directory holding random tensors. Error out
 # if this isn't set.
 TENSOR_PATH = os.environ['TACO_TENSOR_PATH']
@@ -408,31 +411,32 @@ class ImagePydataSparseTensorLoader:
         result_np[m0+dm0:m0+3*dm0, m1-3*dm1:m1-dm1] = 1
         return result_np 
 
+# NEEDS TO BE COMMENTED OUT FOR LANKA
 # plot_image plots the given original, binned, xor, and sparse xor images
 # for the numpy/image.py. Used for debugging only with the --plot flag
-# def plot_image(img, img1, img2, xor_img, sparse_xor_img, t1, t2, window=None):
-#     f, ax = plt.subplots(2, 3)
-#     ax[0, 0].imshow(img1, 'gray')
-#     ax[0, 0].title.set_text("Binned Image 1. t1 = " + str(t1))
-# 
-#     ax[0, 1].imshow(img2, 'gray')
-#     ax[0, 1].title.set_text("Binned Image 2. t2 = " + str(t2))
-# 
-#     ax[1, 0].imshow(img, 'gray')
-#     ax[1, 0].title.set_text("Saturdated Image")
-# 
-#     ax[1, 1].imshow(xor_img, 'gray')
-#     ax[1, 1].title.set_text("XOR Image")
-# 
-#     ax[1, 2].imshow(sparse_xor_img, 'gray')
-#     ax[1, 2].title.set_text("Sparse XOR Image")
-# 
-#     if window is not None:
-#         ax[0, 2].imshow(window, 'gray')
-#         ax[0, 2].title.set_text("Fused Window Image")
-# 
-#     f.tight_layout()
-#     plt.show()
+#def plot_image(img, img1, img2, xor_img, sparse_xor_img, t1, t2, window=None):
+#    f, ax = plt.subplots(2, 3)
+#    ax[0, 0].imshow(img, 'gray')
+#    ax[0, 0].title.set_text("Original Image")
+#
+#    ax[0, 1].imshow(img1, 'gray')
+#    ax[0, 1].title.set_text("Binned Image 1. t = " + str(t1))
+#
+#    ax[0, 2].imshow(img2, 'gray')
+#    ax[0, 2].title.set_text("Binned Image 2. t = " + str(t2))
+#
+#    ax[1, 0].imshow(xor_img, 'gray')
+#    ax[1, 0].title.set_text("Edge Detected Image")
+#
+#    ax[1, 2].imshow(sparse_xor_img, 'gray')
+#    ax[1, 2].title.set_text("Masked Edge Image")
+#
+#    if window is not None:
+#        ax[1, 1].imshow(window, 'gray')
+#        ax[1, 1].title.set_text("ROI Mask")
+#
+#    f.tight_layout()
+#    plt.show()
 
 # construct_minmax_tensor_key constructs a unique key that represents
 # an image tensor parameterized by the tensor order
