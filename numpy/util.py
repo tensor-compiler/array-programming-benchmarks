@@ -301,10 +301,7 @@ def safeCastPydataTensorToInts(tensor):
 # load_image loads an image with the correct color format for the numpy/image.py 
 # benchmark
 def load_image(image_folder, num):
-    if image_folder == 'no':
-        image_folder = "./data/image/no"
-    else:
-        image_folder = "./data/image/yes"
+    image_folder = "./data/image/combined"
 
     name = "image" + str(num) + '.'  
     file_names = [fn for fn in os.listdir(image_folder)
