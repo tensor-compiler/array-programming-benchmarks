@@ -450,7 +450,7 @@ def construct_minmax_tensor_key(dims, variant=None):
     return os.path.join(path, name, key)
 
 def generate_crds_helper(shape, level, crds):
-    sampling = 0.4
+    sampling = 0.1
     num = 4
     std = 2 
 

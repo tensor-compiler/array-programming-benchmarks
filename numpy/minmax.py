@@ -14,6 +14,8 @@ def bench_pydata_minmax(tacoBench, dims):
     #       and not just sparse uniform sampling
     
     matrix = loader.tensor(dims_list)
+    extra_info = dict()
+    extra_info["nnz"] = matrix.nnz
     def bench():
         reduced = matrix
         for m in range(len(dims_list)):   
@@ -21,12 +23,10 @@ def bench_pydata_minmax(tacoBench, dims):
                 reduced = np.max(reduced, -1)
             else:
                 reduced = np.min(reduced, -1)     
-            print(reduced)
         return reduced
-    tacoBench(bench)
-    red = bench()
-    print("reduced value for", dims, "is", red)
+    tacoBench(bench, extra_info, True)
 
+@pytest.mark.skip(reason="Only to get matrix statistics")
 @pytest.mark.parametrize("dims", [1, 3, 5])
 def bench_minmax_statistics(tacoBench, dims):
     loader = MinMaxPydataSparseTensorLoader()

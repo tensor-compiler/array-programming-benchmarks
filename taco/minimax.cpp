@@ -81,6 +81,7 @@ static void bench_minimax(benchmark::State& state) {
 
   std::vector<int> dims = {20, 20, 43, 43, 43, 43, 43};
   dims.resize(order);
+  double return_value;
   // TODO (rohany, owhsu): We need to actually generate the input game state.
   for (auto _ : state) {
     state.PauseTiming();
@@ -91,8 +92,9 @@ static void bench_minimax(benchmark::State& state) {
 //    std::cout << result.getSource() << std::endl;
     state.ResumeTiming();
     result.compute();
-//    state.PauseTiming();
-//    cout << "Reduced value" << result << endl;
+    state.PauseTiming();
+    return_value = result();
   }
+  state.counters["return"] = return_value;
 }
 TACO_BENCH(bench_minimax);
