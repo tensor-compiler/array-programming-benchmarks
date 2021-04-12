@@ -512,3 +512,18 @@ class MinMaxPydataSparseTensorLoader:
                 
     def generate_crds(self, shape):
         return generate_crds_helper(shape, 0, [[0]])
+
+class MinMaxScipySparseTensorLoader:
+    def __init__(self):
+        self.loader = ScipySparseTensorLoader("csr")
+
+    def tensor(self, shape, variant=None):
+        key = construct_minmax_tensor_key(shape)
+        # If a tensor with these properties exists already, then load it.
+        if os.path.exists(key):
+            return self.loader.load(key)
+        else:
+            # Otherwise, we must create a random tensor with the desired properties,
+            # dump it to the output file, then return it.
+            raise NotImplementedError 
+
