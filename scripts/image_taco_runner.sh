@@ -10,7 +10,7 @@ out=image-bench/taco
 
 mkdir -p "$out"
 
-for i in {1..98} 
+for i in {1..253} 
 do
 	csvout="$out/result-taco-img$i.csv"
 	LANKA=ON IMAGE_NUM="$i" TACO_TENSOR_PATH="data/" TACO_OUT="$csvout" make -j8 taco-bench BENCHES="bench_image"

@@ -13,6 +13,6 @@ out=minmax-bench/numpy
 mkdir -p "$out"
 mkdir -p "data/minmax"
 
-jsonout="$out/statistics-numpy.json"
+jsonout="$out/results-scipy-only.json"
 
-LANKA=ON NUMPY_JSON="$jsonout" make python-bench BENCHES="numpy/minmax.py::bench_pydata_minmax" 
+LANKA=ON NUMPY_JSON="$jsonout" make python-bench BENCHES="numpy/minmax.py::bench_scipy_minmax" 

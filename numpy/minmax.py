@@ -1,4 +1,4 @@
-mport numpy as np
+import numpy as np
 from scipy.sparse import random, csr_matrix
 import sparse
 import pytest

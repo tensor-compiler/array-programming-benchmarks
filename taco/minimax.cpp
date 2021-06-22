@@ -92,9 +92,6 @@ static void bench_minimax(benchmark::State& state) {
 //    std::cout << result.getSource() << std::endl;
     state.ResumeTiming();
     result.compute();
-    state.PauseTiming();
-    return_value = result();
   }
-  state.counters["return"] = return_value;
 }
 TACO_BENCH(bench_minimax);

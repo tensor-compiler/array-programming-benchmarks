@@ -235,7 +235,8 @@ def bench_test_fused_pydata(tacoBench, num, pt1):
         print("Dense xor NNZ = ", np.sum(xor_img != 0))
         assert(sparse_xor_img.nnz == np.sum(xor_img != 1))
 
-@pytest.mark.skip(reason="for getting the input matrices statistics only")
+
+#@pytest.mark.skip(reason="for getting the input matrices statistics only")
 @pytest.mark.parametrize("num", list(range(1, 253))) 
 @pytest.mark.parametrize("pt1", [0.75])
 def bench_edge_detection_statistics(tacoBench, num, pt1):

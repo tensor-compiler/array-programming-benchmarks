@@ -8,11 +8,11 @@ set -u
 
 source /data/scratch/rohany/array-programming-benchmarks/venv/bin/activate
 
-out=image-bench/numpy
+out=image-bench/
 
 mkdir -p "$out"
 mkdir -p "data/image/tensors"
 
-jsonout="$out/result-numpy.json"
+jsonout="$out/image-bench-statistics-all.json"
 
-LANKA=ON NUMPY_JSON="$jsonout" make python-bench BENCHES="numpy/image.py"
+LANKA=ON NUMPY_JSON="$jsonout" make python-bench BENCHES="numpy/image.py::bench_edge_detection_statistics"
